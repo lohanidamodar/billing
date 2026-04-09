@@ -192,22 +192,51 @@ Library tracks retry state. App schedules actual retries (infra-specific).
 
 ### Budget / Spending Caps
 
+Budget tracks usage-based spending against a cap throughout the cycle. No invoice exists mid-cycle — budget is tracked on the subscription itself.
+
 - `setBudget(subscriptionId, amount)` → sets dollar cap (null = unlimited)
-- `updateBudgetUsed(subscriptionId, amount)` → tracks usage against cap
-- Library computes `budgetLimitReached` and emits `subscription.budget_reached`
+- `updateBudgetUsed(subscriptionId, amount)` → app calls after each aggregation run. Library computes `budgetLimitReached`, emits warning/reached events.
+- `budgetUsed` resets to 0 on subscription renewal (new cycle)
 - App enforces what happens when budget is hit (block API, alert, etc.)
+- Library does NOT enforce limits — it only tracks and emits events
 
-## Invoice Finalization Flow
+## Invoice Lifecycle — No Pending Invoices
+
+**Critical design decision:** Invoices are created at cycle END, not beginning. There are no "pending" invoices that get updated throughout the cycle.
+
+- **Mid-cycle**: No invoice exists. App tracks usage via its own aggregation pipeline. App calls `updateBudgetUsed()` on the library to track spending against budget caps.
+- **Cycle end**: App computes final usage amounts, creates invoice with all line items, library finalizes it.
+- **Invoice is immutable once created** — no mid-cycle updates, no corruption risk.
+
+### Invoice Finalization Flow (at cycle end)
 
 ```
-1. App creates invoice with line items (plan, usage, addons)
-2. Library applies line-level discounts (scope.resources matches item.resource)
-3. Library applies invoice-level discounts (scope is null)
-4. Library adds tax line items (app provides rate + taxable types)
-5. Library computes subtotal, discountTotal, taxTotal, total
-6. Library generates invoice number and emits 'invoice.finalized'
-7. App orchestrates payment: wallet deduction → gateway charge
+1. App computes final usage from aggregation pipeline
+2. App creates invoice with line items (plan, usage, addons) via createInvoice()
+3. App calls finalizeInvoice() — library does the rest:
+   a. Queries active discounts for the subscription
+   b. Applies line-level discounts (scope.resources matches item.resource)
+   c. Applies invoice-level discounts (scope is null)
+   d. Decrements discount cyclesRemaining
+   e. Adds tax line items (app provides rate + taxable types)
+   f. Computes subtotal, discountTotal, taxTotal, total
+   g. Generates invoice number (configurable format)
+   h. Emits 'invoice.finalized' event
+4. App orchestrates payment: wallet deduction → gateway charge
+5. App calls markInvoicePaid() or markInvoiceFailed()
 ```
+
+### Amount Calculation Responsibility
+
+| Concern | Who handles it |
+|---|---|
+| Usage aggregation (bandwidth, executions, storage) | App (aggregation pipeline) |
+| Usage-to-amount conversion (quantity × unit price) | App (knows plan pricing) |
+| Discount application (line-level + invoice-level) | Library (during finalization) |
+| Tax computation | Library (app provides rate) |
+| Total calculation | Library (subtotal + discounts + tax) |
+| Budget tracking mid-cycle | Library stores `budgetUsed`, app calls `updateBudgetUsed()` |
+| Budget enforcement (block API calls) | App (checks `budgetLimitReached`) |
 
 ## Important Design Decisions
 
