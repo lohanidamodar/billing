@@ -37,7 +37,16 @@ The library uses 6 database collections, all namespace-isolated (no hardcoded pr
 ## Key Models
 
 ### Subscription
-Customer's subscription to a plan. Tracks status (active, past_due, canceled, trialing), current period start/end, billing anchor, and trial end.
+Customer's subscription to a plan. Has 8 states and supports pending plan changes, budgets, and dunning.
+
+**States**: `incomplete`, `incomplete_expired`, `trialing`, `active`, `past_due`, `canceling`, `canceled`, `suspended`
+
+**Key fields:**
+- Core: `entityId`, `planId`, `status`, `currentPeriodStart`, `currentPeriodEnd`, `trialStart`, `trialEnd`
+- Pending changes: `pendingPlanId`, `pendingChangeType` (upgrade/downgrade), `pendingChangedAt`, `pendingExpiresAt`, `pendingInvoiceId`
+- Budget: `budget` (nullable, dollar cap), `budgetUsed`, `budgetLimitReached`
+- Dunning: `failedPaymentAttempts`, `nextRetryAt`, `lastFailedAt`
+- Cancellation: `cancelAtPeriodEnd`
 
 ### Invoice
 Contains denormalized line items as an array attribute. Each line item has the same structure regardless of type.
@@ -143,10 +152,72 @@ templates/
     invoice.html             # Default HTML invoice template
 ```
 
+## Subscription Lifecycle
+
+### State Machine
+
+```
+incomplete → active (payment succeeds) | incomplete_expired (23h timeout)
+trialing → active (trial ends + payment succeeds)
+active → past_due (renewal fails) | canceling (cancel at period end)
+past_due → active (retry succeeds) | suspended (max retries exhausted)
+canceling → canceled (period ends)
+```
+
+### Pending Upgrades (Stripe's `pending_if_incomplete` pattern)
+
+Upgrades do NOT apply immediately. The subscription stores a pending change and keeps the old plan active until payment confirms.
+
+1. `requestUpgrade(subscriptionId, newPlanId)` → sets `pendingPlanId`, creates upgrade invoice, emits `subscription.upgrade_pending`
+2. Payment succeeds → `finalizeUpgrade(subscriptionId)` → applies plan change, clears pending, emits `subscription.upgraded`
+3. Payment fails → `cancelUpgrade(subscriptionId)` → clears pending, voids invoice, emits `subscription.upgrade_failed`
+4. Timeout (23h) → auto-clears pending, voids invoice, emits `subscription.upgrade_expired`
+
+### Downgrades (Deferred to End of Cycle)
+
+Downgrades are deferred. Customer keeps current plan until period ends.
+
+1. `requestDowngrade(subscriptionId, newPlanId)` → sets `pendingPlanId`, `pendingChangeType: 'downgrade'`
+2. At cycle end during renewal → `applyPendingDowngrade(subscriptionId)` → switches plan, emits `subscription.downgraded`
+3. Cancel before cycle end → `cancelDowngrade(subscriptionId)` → clears pending
+
+### Failed Payment / Dunning
+
+Library tracks retry state. App schedules actual retries (infra-specific).
+
+- `recordPaymentFailure(subscriptionId)` → increments `failedPaymentAttempts`, computes `nextRetryAt`, transitions to `past_due`
+- `recordPaymentSuccess(subscriptionId)` → resets counters, transitions back to `active`
+- `suspendSubscription(subscriptionId)` → max retries exhausted, transitions to `suspended`
+- Events: `payment.failed`, `payment.retry_scheduled`, `subscription.suspended`
+
+### Budget / Spending Caps
+
+- `setBudget(subscriptionId, amount)` → sets dollar cap (null = unlimited)
+- `updateBudgetUsed(subscriptionId, amount)` → tracks usage against cap
+- Library computes `budgetLimitReached` and emits `subscription.budget_reached`
+- App enforces what happens when budget is hit (block API, alert, etc.)
+
+## Invoice Finalization Flow
+
+```
+1. App creates invoice with line items (plan, usage, addons)
+2. Library applies line-level discounts (scope.resources matches item.resource)
+3. Library applies invoice-level discounts (scope is null)
+4. Library adds tax line items (app provides rate + taxable types)
+5. Library computes subtotal, discountTotal, taxTotal, total
+6. Library generates invoice number and emits 'invoice.finalized'
+7. App orchestrates payment: wallet deduction → gateway charge
+```
+
 ## Important Design Decisions
 
 1. **Library is generic** — no Appwrite-specific logic. Plans, products, and pricing tiers are defined by the consuming application, not this library.
 2. **Line items are denormalized** — stored as an array attribute on the invoice document, not as a separate collection. This simplifies queries and ensures invoice immutability.
 3. **Fixed coupons credit wallets** — when a fixed-amount coupon is applied, the amount is credited to the customer's wallet immediately, creating a `coupon_credit` transaction.
-4. **All money movements are transactions** — the transactions collection serves as a unified financial ledger for auditing and reconciliation.
-5. **Namespace isolation** — collections use the database namespace for tenant isolation; no hardcoded collection name prefixes.
+4. **Percentage coupons create applied discounts** — tracked in the `discounts` collection with cycle countdown, applied as line items during invoice finalization.
+5. **All money movements are transactions** — the transactions collection serves as a unified financial ledger for auditing and reconciliation. Every transaction has an `invoiceId`.
+6. **Namespace isolation** — collections use the database namespace for tenant isolation; no hardcoded collection name prefixes.
+7. **Subscription state tracks payment state** — unlike Lago (decoupled), we follow Stripe's model where subscription status reflects payment health. Downstream services check one field.
+8. **Pending upgrades don't apply until payment confirms** — Stripe's `pending_if_incomplete` pattern prevents resource access without payment.
+9. **Downgrades deferred to end of cycle** — customer already paid for current plan.
+10. **Budget enforcement is app-layer** — library tracks budget/used/reached, app decides what to restrict.
