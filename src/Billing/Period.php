@@ -17,8 +17,8 @@ class Period
     /**
      * Period constructor.
      *
-     * @param DateTime $start The start of the period (inclusive)
-     * @param DateTime $end The end of the period (inclusive)
+     * @param  DateTime  $start  The start of the period (inclusive)
+     * @param  DateTime  $end  The end of the period (inclusive)
      *
      * @throws Exception If start is after end
      */
@@ -33,8 +33,6 @@ class Period
 
     /**
      * Get the start date of the period.
-     *
-     * @return DateTime
      */
     public function getStart(): DateTime
     {
@@ -43,8 +41,6 @@ class Period
 
     /**
      * Get the end date of the period.
-     *
-     * @return DateTime
      */
     public function getEnd(): DateTime
     {
@@ -53,8 +49,6 @@ class Period
 
     /**
      * Get the number of days in the period.
-     *
-     * @return int
      */
     public function getDays(): int
     {
@@ -66,9 +60,7 @@ class Period
     /**
      * Check if a given date falls within the period (inclusive).
      *
-     * @param DateTime $date The date to check
-     *
-     * @return bool
+     * @param  DateTime  $date  The date to check
      */
     public function contains(DateTime $date): bool
     {
@@ -80,9 +72,7 @@ class Period
      *
      * Two periods overlap if one starts before the other ends and vice versa.
      *
-     * @param Period $other The other period to check against
-     *
-     * @return bool
+     * @param  Period  $other  The other period to check against
      */
     public function overlaps(Period $other): bool
     {
@@ -92,13 +82,11 @@ class Period
     /**
      * Check if the period has expired relative to the current time or a given date.
      *
-     * @param DateTime|null $now The reference date (defaults to current time)
-     *
-     * @return bool
+     * @param  DateTime|null  $now  The reference date (defaults to current time)
      */
     public function isExpired(?DateTime $now = null): bool
     {
-        $now = $now ?? new DateTime();
+        $now = $now ?? new DateTime;
 
         return $this->end < $now;
     }

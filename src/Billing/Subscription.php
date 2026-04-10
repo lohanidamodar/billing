@@ -17,38 +17,14 @@ use Utopia\Database\Document;
 class Subscription
 {
     /**
-     * Subscription status constants.
-     *
-     * @see CLAUDE.md "Subscription State Machine" for transitions.
-     */
-    public const STATUS_INCOMPLETE = 'incomplete';
-    public const STATUS_INCOMPLETE_EXPIRED = 'incomplete_expired';
-    public const STATUS_TRIALING = 'trialing';
-    public const STATUS_ACTIVE = 'active';
-    public const STATUS_PAST_DUE = 'past_due';
-    public const STATUS_CANCELING = 'canceling';
-    public const STATUS_CANCELED = 'canceled';
-    public const STATUS_SUSPENDED = 'suspended';
-
-    /**
-     * Pending change type constants.
-     */
-    public const CHANGE_TYPE_UPGRADE = 'upgrade';
-    public const CHANGE_TYPE_DOWNGRADE = 'downgrade';
-
-    /**
      * Subscription constructor.
      *
-     * @param Document $document The underlying database document
+     * @param  Document  $document  The underlying database document
      */
-    public function __construct(protected Document $document)
-    {
-    }
+    public function __construct(protected Document $document) {}
 
     /**
      * Get the underlying database document.
-     *
-     * @return Document
      */
     public function getDocument(): Document
     {
@@ -57,8 +33,6 @@ class Subscription
 
     /**
      * Get the collection name for subscriptions.
-     *
-     * @return string
      */
     public static function getName(): string
     {
@@ -67,8 +41,6 @@ class Subscription
 
     /**
      * Get the subscription ID.
-     *
-     * @return string
      */
     public function getId(): string
     {
@@ -77,20 +49,14 @@ class Subscription
 
     /**
      * Get the entity ID (team, user, org) that owns this subscription.
-     *
-     * @return string
      */
     public function getEntityId(): string
     {
-        return $this->document->getAttribute('entityId', '');
+        return (string) $this->document->getAttribute('entityId', '');
     }
 
     /**
      * Set the entity ID.
-     *
-     * @param string $entityId
-     *
-     * @return self
      */
     public function setEntityId(string $entityId): self
     {
@@ -101,20 +67,14 @@ class Subscription
 
     /**
      * Get the entity type (e.g., 'organization', 'user').
-     *
-     * @return string
      */
     public function getEntityType(): string
     {
-        return $this->document->getAttribute('entityType', '');
+        return (string) $this->document->getAttribute('entityType', '');
     }
 
     /**
      * Set the entity type.
-     *
-     * @param string $entityType
-     *
-     * @return self
      */
     public function setEntityType(string $entityType): self
     {
@@ -125,20 +85,14 @@ class Subscription
 
     /**
      * Get the current active plan ID.
-     *
-     * @return string
      */
     public function getPlanId(): string
     {
-        return $this->document->getAttribute('planId', '');
+        return (string) $this->document->getAttribute('planId', '');
     }
 
     /**
      * Set the plan ID.
-     *
-     * @param string $planId
-     *
-     * @return self
      */
     public function setPlanId(string $planId): self
     {
@@ -149,44 +103,34 @@ class Subscription
 
     /**
      * Get the subscription status.
-     *
-     * @return string One of the STATUS_* constants
      */
-    public function getStatus(): string
+    public function getStatus(): SubscriptionStatus
     {
-        return $this->document->getAttribute('status', '');
+        return SubscriptionStatus::from((string) $this->document->getAttribute('status', 'incomplete'));
     }
 
     /**
      * Set the subscription status.
-     *
-     * @param string $status One of the STATUS_* constants
-     *
-     * @return self
      */
-    public function setStatus(string $status): self
+    public function setStatus(SubscriptionStatus $status): self
     {
-        $this->document->setAttribute('status', $status);
+        $this->document->setAttribute('status', $status->value);
 
         return $this;
     }
 
     /**
      * Get the current billing period start date.
-     *
-     * @return string
      */
     public function getCurrentPeriodStart(): string
     {
-        return $this->document->getAttribute('currentPeriodStart', '');
+        return (string) $this->document->getAttribute('currentPeriodStart', '');
     }
 
     /**
      * Set the current billing period start date.
      *
-     * @param string $currentPeriodStart ISO 8601 datetime string
-     *
-     * @return self
+     * @param  string  $currentPeriodStart  ISO 8601 datetime string
      */
     public function setCurrentPeriodStart(string $currentPeriodStart): self
     {
@@ -197,20 +141,16 @@ class Subscription
 
     /**
      * Get the current billing period end date.
-     *
-     * @return string
      */
     public function getCurrentPeriodEnd(): string
     {
-        return $this->document->getAttribute('currentPeriodEnd', '');
+        return (string) $this->document->getAttribute('currentPeriodEnd', '');
     }
 
     /**
      * Set the current billing period end date.
      *
-     * @param string $currentPeriodEnd ISO 8601 datetime string
-     *
-     * @return self
+     * @param  string  $currentPeriodEnd  ISO 8601 datetime string
      */
     public function setCurrentPeriodEnd(string $currentPeriodEnd): self
     {
@@ -221,8 +161,6 @@ class Subscription
 
     /**
      * Get the trial start date.
-     *
-     * @return string|null
      */
     public function getTrialStart(): ?string
     {
@@ -232,9 +170,7 @@ class Subscription
     /**
      * Set the trial start date.
      *
-     * @param string|null $trialStart ISO 8601 datetime string or null
-     *
-     * @return self
+     * @param  string|null  $trialStart  ISO 8601 datetime string or null
      */
     public function setTrialStart(?string $trialStart): self
     {
@@ -245,8 +181,6 @@ class Subscription
 
     /**
      * Get the trial end date.
-     *
-     * @return string|null
      */
     public function getTrialEnd(): ?string
     {
@@ -256,9 +190,7 @@ class Subscription
     /**
      * Set the trial end date.
      *
-     * @param string|null $trialEnd ISO 8601 datetime string or null
-     *
-     * @return self
+     * @param  string|null  $trialEnd  ISO 8601 datetime string or null
      */
     public function setTrialEnd(?string $trialEnd): self
     {
@@ -269,8 +201,6 @@ class Subscription
 
     /**
      * Get the pending plan ID (requested upgrade or downgrade).
-     *
-     * @return string|null
      */
     public function getPendingPlanId(): ?string
     {
@@ -279,10 +209,6 @@ class Subscription
 
     /**
      * Set the pending plan ID.
-     *
-     * @param string|null $pendingPlanId
-     *
-     * @return self
      */
     public function setPendingPlanId(?string $pendingPlanId): self
     {
@@ -292,33 +218,27 @@ class Subscription
     }
 
     /**
-     * Get the pending change type ('upgrade' or 'downgrade').
-     *
-     * @return string|null One of CHANGE_TYPE_* constants or null
+     * Get the pending change type.
      */
-    public function getPendingChangeType(): ?string
+    public function getPendingChangeType(): ?ChangeType
     {
-        return $this->document->getAttribute('pendingChangeType');
+        $value = $this->document->getAttribute('pendingChangeType');
+
+        return $value !== null ? ChangeType::from((string) $value) : null;
     }
 
     /**
      * Set the pending change type.
-     *
-     * @param string|null $pendingChangeType One of CHANGE_TYPE_* constants or null
-     *
-     * @return self
      */
-    public function setPendingChangeType(?string $pendingChangeType): self
+    public function setPendingChangeType(?ChangeType $pendingChangeType): self
     {
-        $this->document->setAttribute('pendingChangeType', $pendingChangeType);
+        $this->document->setAttribute('pendingChangeType', $pendingChangeType?->value);
 
         return $this;
     }
 
     /**
      * Get the datetime when the pending change was requested.
-     *
-     * @return string|null
      */
     public function getPendingChangedAt(): ?string
     {
@@ -328,9 +248,7 @@ class Subscription
     /**
      * Set the datetime when the pending change was requested.
      *
-     * @param string|null $pendingChangedAt ISO 8601 datetime string or null
-     *
-     * @return self
+     * @param  string|null  $pendingChangedAt  ISO 8601 datetime string or null
      */
     public function setPendingChangedAt(?string $pendingChangedAt): self
     {
@@ -341,8 +259,6 @@ class Subscription
 
     /**
      * Get the auto-expiry datetime for pending upgrades.
-     *
-     * @return string|null
      */
     public function getPendingExpiresAt(): ?string
     {
@@ -352,9 +268,7 @@ class Subscription
     /**
      * Set the auto-expiry datetime for pending upgrades.
      *
-     * @param string|null $pendingExpiresAt ISO 8601 datetime string or null
-     *
-     * @return self
+     * @param  string|null  $pendingExpiresAt  ISO 8601 datetime string or null
      */
     public function setPendingExpiresAt(?string $pendingExpiresAt): self
     {
@@ -365,8 +279,6 @@ class Subscription
 
     /**
      * Get the invoice ID for the pending upgrade payment.
-     *
-     * @return string|null
      */
     public function getPendingInvoiceId(): ?string
     {
@@ -375,10 +287,6 @@ class Subscription
 
     /**
      * Set the invoice ID for the pending upgrade payment.
-     *
-     * @param string|null $pendingInvoiceId
-     *
-     * @return self
      */
     public function setPendingInvoiceId(?string $pendingInvoiceId): self
     {
@@ -400,9 +308,7 @@ class Subscription
     /**
      * Set the budget (spending cap) per billing cycle.
      *
-     * @param float|null $budget Dollar cap per cycle, null for unlimited
-     *
-     * @return self
+     * @param  float|null  $budget  Dollar cap per cycle, null for unlimited
      */
     public function setBudget(?float $budget): self
     {
@@ -413,20 +319,14 @@ class Subscription
 
     /**
      * Get the current cycle usage total.
-     *
-     * @return float
      */
     public function getBudgetUsed(): float
     {
-        return $this->document->getAttribute('budgetUsed', 0.0);
+        return (float) $this->document->getAttribute('budgetUsed', 0.0);
     }
 
     /**
      * Set the current cycle usage total.
-     *
-     * @param float $budgetUsed
-     *
-     * @return self
      */
     public function setBudgetUsed(float $budgetUsed): self
     {
@@ -437,22 +337,14 @@ class Subscription
 
     /**
      * Check if the budget limit has been reached.
-     *
-     * Computed as: budgetUsed >= budget (when budget is not null).
-     *
-     * @return bool
      */
     public function getBudgetLimitReached(): bool
     {
-        return $this->document->getAttribute('budgetLimitReached', false);
+        return (bool) $this->document->getAttribute('budgetLimitReached', false);
     }
 
     /**
      * Set whether the budget limit has been reached.
-     *
-     * @param bool $budgetLimitReached
-     *
-     * @return self
      */
     public function setBudgetLimitReached(bool $budgetLimitReached): self
     {
@@ -463,20 +355,14 @@ class Subscription
 
     /**
      * Get the number of consecutive failed payment attempts.
-     *
-     * @return int
      */
     public function getFailedPaymentAttempts(): int
     {
-        return $this->document->getAttribute('failedPaymentAttempts', 0);
+        return (int) $this->document->getAttribute('failedPaymentAttempts', 0);
     }
 
     /**
      * Set the number of consecutive failed payment attempts.
-     *
-     * @param int $failedPaymentAttempts
-     *
-     * @return self
      */
     public function setFailedPaymentAttempts(int $failedPaymentAttempts): self
     {
@@ -487,8 +373,6 @@ class Subscription
 
     /**
      * Get the next payment retry datetime.
-     *
-     * @return string|null
      */
     public function getNextRetryAt(): ?string
     {
@@ -498,9 +382,7 @@ class Subscription
     /**
      * Set the next payment retry datetime.
      *
-     * @param string|null $nextRetryAt ISO 8601 datetime string or null
-     *
-     * @return self
+     * @param  string|null  $nextRetryAt  ISO 8601 datetime string or null
      */
     public function setNextRetryAt(?string $nextRetryAt): self
     {
@@ -511,8 +393,6 @@ class Subscription
 
     /**
      * Get the datetime of the last failed payment attempt.
-     *
-     * @return string|null
      */
     public function getLastFailedAt(): ?string
     {
@@ -522,9 +402,7 @@ class Subscription
     /**
      * Set the datetime of the last failed payment attempt.
      *
-     * @param string|null $lastFailedAt ISO 8601 datetime string or null
-     *
-     * @return self
+     * @param  string|null  $lastFailedAt  ISO 8601 datetime string or null
      */
     public function setLastFailedAt(?string $lastFailedAt): self
     {
@@ -535,20 +413,14 @@ class Subscription
 
     /**
      * Check if the subscription is set to cancel at the end of the current period.
-     *
-     * @return bool
      */
     public function getCancelAtPeriodEnd(): bool
     {
-        return $this->document->getAttribute('cancelAtPeriodEnd', false);
+        return (bool) $this->document->getAttribute('cancelAtPeriodEnd', false);
     }
 
     /**
      * Set whether the subscription should cancel at the end of the current period.
-     *
-     * @param bool $cancelAtPeriodEnd
-     *
-     * @return self
      */
     public function setCancelAtPeriodEnd(bool $cancelAtPeriodEnd): self
     {
@@ -564,27 +436,29 @@ class Subscription
      */
     public function getMetadata(): array
     {
-        return $this->document->getAttribute('metadata', []);
+        $meta = $this->document->getAttribute('metadata', []);
+
+        if (\is_string($meta)) {
+            return (array) \json_decode($meta, true);
+        }
+
+        return $meta;
     }
 
     /**
      * Set the subscription metadata.
      *
-     * @param array<string, mixed> $metadata
-     *
-     * @return self
+     * @param  array<string, mixed>  $metadata
      */
     public function setMetadata(array $metadata): self
     {
-        $this->document->setAttribute('metadata', $metadata);
+        $this->document->setAttribute('metadata', \json_encode($metadata));
 
         return $this;
     }
 
     /**
      * Check if the subscription has a pending plan change.
-     *
-     * @return bool
      */
     public function hasPendingChange(): bool
     {
@@ -593,38 +467,23 @@ class Subscription
 
     /**
      * Check if the subscription has an active or trialing status (i.e., access is granted).
-     *
-     * @return bool
      */
     public function isAccessible(): bool
     {
-        return match ($this->getStatus()) {
-            self::STATUS_ACTIVE,
-            self::STATUS_TRIALING,
-            self::STATUS_PAST_DUE,
-            self::STATUS_CANCELING => true,
-            default => false,
-        };
+        return $this->getStatus()->isAccessible();
     }
 
     /**
      * Check if the subscription is in a terminal state.
-     *
-     * @return bool
      */
     public function isTerminal(): bool
     {
-        return match ($this->getStatus()) {
-            self::STATUS_INCOMPLETE_EXPIRED,
-            self::STATUS_CANCELED => true,
-            default => false,
-        };
+        return $this->getStatus()->isTerminal();
     }
 
     /**
      * Get the current billing period as a Period value object.
      *
-     * @return Period
      *
      * @throws Exception If period dates are not set
      */

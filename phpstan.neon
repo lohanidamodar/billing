@@ -1,0 +1,14 @@
+parameters:
+    level: max
+    paths:
+        - src
+        - tests
+    ignoreErrors:
+        # utopia-php/database Document::getAttribute() returns mixed by design.
+        # All model getters apply appropriate casts. This is the standard
+        # pattern across all utopia-php libraries.
+        - '#Cannot cast mixed to (string|int|float|bool)#'
+        - '#should return .+ but returns mixed#'
+        - '#should return .+ but returns array#'
+        # Query::equal() accepts mixed values from filters
+        - '#Parameter \#2 \$values of static method Utopia\\Database\\Query::equal\(\) expects#'

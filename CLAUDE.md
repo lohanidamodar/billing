@@ -455,11 +455,19 @@ src/Billing/
     Adapter/
         Database.php         # Database adapter (setup + all CRUD)
     Subscription.php
-    Invoice.php              # Includes calculation logic (moved from Pay)
+    SubscriptionStatus.php   # Enum: incomplete, active, past_due, etc.
+    Invoice.php
+    InvoiceStatus.php        # Enum: draft, finalized, paid, etc.
     Coupon.php
+    CouponType.php           # Enum: fixed, percentage
+    CouponDuration.php       # Enum: once, repeating, forever
     Discount.php
+    DiscountStatus.php       # Enum: active, exhausted, cancelled
     Credit.php               # Calculation utility (moved from Pay)
     Transaction.php
+    TransactionType.php      # Enum: gateway_charge, wallet_topup, etc.
+    TransactionStatus.php    # Enum: pending, succeeded, failed
+    ChangeType.php           # Enum: upgrade, downgrade
     Wallet.php
     Period.php               # Value object: start, end, duration math
     Exception.php
@@ -470,9 +478,7 @@ templates/
     invoice.phtml            # Default invoice template
 tests/
     Billing/
-        BillingTest.php
-        Adapter/
-            DatabaseTest.php
+        BillingTest.php      # In-memory adapter + full facade tests
 ```
 
 ---
@@ -480,7 +486,7 @@ tests/
 ## Coding Conventions
 
 - `declare(strict_types=1);` in every file
-- PHP 8.0+ (union types, named arguments, match expressions)
+- PHP 8.1+ (enums, union types, named arguments, match expressions)
 - PSR-4 autoloading
 - PHPUnit for tests
 - `$db->getAuthorization()->skip()` for internal DB operations

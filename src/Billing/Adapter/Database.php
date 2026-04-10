@@ -26,20 +26,23 @@ class Database extends Adapter
      * Collection name constants.
      */
     private const COLLECTION_SUBSCRIPTIONS = 'subscriptions';
+
     private const COLLECTION_INVOICES = 'invoices';
+
     private const COLLECTION_COUPONS = 'coupons';
+
     private const COLLECTION_DISCOUNTS = 'discounts';
+
     private const COLLECTION_WALLETS = 'wallets';
+
     private const COLLECTION_TRANSACTIONS = 'transactions';
 
     /**
      * Database adapter constructor.
      *
-     * @param UtopiaDatabase $db The utopia-php/database instance
+     * @param  UtopiaDatabase  $db  The utopia-php/database instance
      */
-    public function __construct(protected UtopiaDatabase $db)
-    {
-    }
+    public function __construct(protected UtopiaDatabase $db) {}
 
     /**
      * Set up all billing collections, attributes, and indexes.
@@ -48,7 +51,6 @@ class Database extends Adapter
      * wallets, and transactions. This method is idempotent — calling it on
      * an already-initialized database is a no-op.
      *
-     * @return void
      *
      * @throws Exception If the database does not exist
      */
@@ -58,7 +60,13 @@ class Database extends Adapter
         $authorization = $db->getAuthorization();
 
         $authorization->skip(function () use ($db) {
-            if (!$db->exists()) {
+            try {
+                $exists = $db->exists();
+            } catch (\Throwable) {
+                $exists = false;
+            }
+
+            if (! $exists) {
                 throw new Exception('Database not ready');
             }
 
@@ -316,7 +324,7 @@ class Database extends Adapter
             ]);
 
             if (empty($results)) {
-                return new Document();
+                return new Document;
             }
 
             return $results[0];
@@ -599,22 +607,23 @@ class Database extends Adapter
     /**
      * Check if a collection already exists.
      *
-     * @param UtopiaDatabase $db The database instance
-     * @param string $name The collection name
-     *
+     * @param  UtopiaDatabase  $db  The database instance
+     * @param  string  $name  The collection name
      * @return bool True if the collection already exists
      */
     private function collectionExists(UtopiaDatabase $db, string $name): bool
     {
-        return !$db->getCollection($name)->isEmpty();
+        try {
+            return ! $db->getCollection($name)->isEmpty();
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     /**
      * Create the subscriptions collection with all attributes and indexes.
      *
-     * @param UtopiaDatabase $db The database instance
-     *
-     * @return void
+     * @param  UtopiaDatabase  $db  The database instance
      */
     private function createSubscriptionsCollection(UtopiaDatabase $db): void
     {
@@ -639,7 +648,7 @@ class Database extends Adapter
         $db->createAttribute(self::COLLECTION_SUBSCRIPTIONS, 'pendingExpiresAt', UtopiaDatabase::VAR_DATETIME, 0, false);
         $db->createAttribute(self::COLLECTION_SUBSCRIPTIONS, 'pendingInvoiceId', UtopiaDatabase::VAR_STRING, 255, false);
         $db->createAttribute(self::COLLECTION_SUBSCRIPTIONS, 'budget', UtopiaDatabase::VAR_FLOAT, 0, false);
-        $db->createAttribute(self::COLLECTION_SUBSCRIPTIONS, 'budgetUsed', UtopiaDatabase::VAR_FLOAT, 0, false, default: 0);
+        $db->createAttribute(self::COLLECTION_SUBSCRIPTIONS, 'budgetUsed', UtopiaDatabase::VAR_FLOAT, 0, false, default: 0.0);
         $db->createAttribute(self::COLLECTION_SUBSCRIPTIONS, 'budgetLimitReached', UtopiaDatabase::VAR_BOOLEAN, 0, false, default: false);
         $db->createAttribute(self::COLLECTION_SUBSCRIPTIONS, 'failedPaymentAttempts', UtopiaDatabase::VAR_INTEGER, 0, false, default: 0);
         $db->createAttribute(self::COLLECTION_SUBSCRIPTIONS, 'nextRetryAt', UtopiaDatabase::VAR_DATETIME, 0, false);
@@ -656,9 +665,7 @@ class Database extends Adapter
     /**
      * Create the invoices collection with all attributes and indexes.
      *
-     * @param UtopiaDatabase $db The database instance
-     *
-     * @return void
+     * @param  UtopiaDatabase  $db  The database instance
      */
     private function createInvoicesCollection(UtopiaDatabase $db): void
     {
@@ -676,12 +683,12 @@ class Database extends Adapter
         $db->createAttribute(self::COLLECTION_INVOICES, 'number', UtopiaDatabase::VAR_STRING, 255, true);
         $db->createAttribute(self::COLLECTION_INVOICES, 'status', UtopiaDatabase::VAR_STRING, 50, true);
         $db->createAttribute(self::COLLECTION_INVOICES, 'items', UtopiaDatabase::VAR_STRING, 1000000, false);
-        $db->createAttribute(self::COLLECTION_INVOICES, 'subtotal', UtopiaDatabase::VAR_FLOAT, 0, false, default: 0);
-        $db->createAttribute(self::COLLECTION_INVOICES, 'discountTotal', UtopiaDatabase::VAR_FLOAT, 0, false, default: 0);
-        $db->createAttribute(self::COLLECTION_INVOICES, 'taxTotal', UtopiaDatabase::VAR_FLOAT, 0, false, default: 0);
-        $db->createAttribute(self::COLLECTION_INVOICES, 'total', UtopiaDatabase::VAR_FLOAT, 0, false, default: 0);
-        $db->createAttribute(self::COLLECTION_INVOICES, 'walletDeducted', UtopiaDatabase::VAR_FLOAT, 0, false, default: 0);
-        $db->createAttribute(self::COLLECTION_INVOICES, 'gatewayCharged', UtopiaDatabase::VAR_FLOAT, 0, false, default: 0);
+        $db->createAttribute(self::COLLECTION_INVOICES, 'subtotal', UtopiaDatabase::VAR_FLOAT, 0, false, default: 0.0);
+        $db->createAttribute(self::COLLECTION_INVOICES, 'discountTotal', UtopiaDatabase::VAR_FLOAT, 0, false, default: 0.0);
+        $db->createAttribute(self::COLLECTION_INVOICES, 'taxTotal', UtopiaDatabase::VAR_FLOAT, 0, false, default: 0.0);
+        $db->createAttribute(self::COLLECTION_INVOICES, 'total', UtopiaDatabase::VAR_FLOAT, 0, false, default: 0.0);
+        $db->createAttribute(self::COLLECTION_INVOICES, 'walletDeducted', UtopiaDatabase::VAR_FLOAT, 0, false, default: 0.0);
+        $db->createAttribute(self::COLLECTION_INVOICES, 'gatewayCharged', UtopiaDatabase::VAR_FLOAT, 0, false, default: 0.0);
         $db->createAttribute(self::COLLECTION_INVOICES, 'currency', UtopiaDatabase::VAR_STRING, 10, true);
         $db->createAttribute(self::COLLECTION_INVOICES, 'dueDate', UtopiaDatabase::VAR_DATETIME, 0, false);
         $db->createAttribute(self::COLLECTION_INVOICES, 'paidAt', UtopiaDatabase::VAR_DATETIME, 0, false);
@@ -698,9 +705,7 @@ class Database extends Adapter
     /**
      * Create the coupons collection with all attributes and indexes.
      *
-     * @param UtopiaDatabase $db The database instance
-     *
-     * @return void
+     * @param  UtopiaDatabase  $db  The database instance
      */
     private function createCouponsCollection(UtopiaDatabase $db): void
     {
@@ -732,9 +737,7 @@ class Database extends Adapter
     /**
      * Create the discounts collection with all attributes and indexes.
      *
-     * @param UtopiaDatabase $db The database instance
-     *
-     * @return void
+     * @param  UtopiaDatabase  $db  The database instance
      */
     private function createDiscountsCollection(UtopiaDatabase $db): void
     {
@@ -770,9 +773,7 @@ class Database extends Adapter
     /**
      * Create the wallets collection with all attributes and indexes.
      *
-     * @param UtopiaDatabase $db The database instance
-     *
-     * @return void
+     * @param  UtopiaDatabase  $db  The database instance
      */
     private function createWalletsCollection(UtopiaDatabase $db): void
     {
@@ -784,7 +785,7 @@ class Database extends Adapter
 
         // Attributes
         $db->createAttribute(self::COLLECTION_WALLETS, 'entityId', UtopiaDatabase::VAR_STRING, 255, true);
-        $db->createAttribute(self::COLLECTION_WALLETS, 'balance', UtopiaDatabase::VAR_FLOAT, 0, false, default: 0);
+        $db->createAttribute(self::COLLECTION_WALLETS, 'balance', UtopiaDatabase::VAR_FLOAT, 0, false, default: 0.0);
         $db->createAttribute(self::COLLECTION_WALLETS, 'currency', UtopiaDatabase::VAR_STRING, 10, true);
         $db->createAttribute(self::COLLECTION_WALLETS, 'metadata', UtopiaDatabase::VAR_STRING, 65535, false);
 
@@ -795,9 +796,7 @@ class Database extends Adapter
     /**
      * Create the transactions collection with all attributes and indexes.
      *
-     * @param UtopiaDatabase $db The database instance
-     *
-     * @return void
+     * @param  UtopiaDatabase  $db  The database instance
      */
     private function createTransactionsCollection(UtopiaDatabase $db): void
     {

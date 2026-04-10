@@ -25,38 +25,14 @@ use Utopia\Database\Document;
 class Discount
 {
     /**
-     * Discount type constants (inherited from coupon).
-     */
-    public const TYPE_FIXED = 'fixed';
-    public const TYPE_PERCENTAGE = 'percentage';
-
-    /**
-     * Discount duration constants (inherited from coupon).
-     */
-    public const DURATION_ONCE = 'once';
-    public const DURATION_REPEATING = 'repeating';
-    public const DURATION_FOREVER = 'forever';
-
-    /**
-     * Discount status constants.
-     */
-    public const STATUS_ACTIVE = 'active';
-    public const STATUS_EXHAUSTED = 'exhausted';
-    public const STATUS_CANCELLED = 'cancelled';
-
-    /**
      * Discount constructor.
      *
-     * @param Document $document The underlying database document
+     * @param  Document  $document  The underlying database document
      */
-    public function __construct(protected Document $document)
-    {
-    }
+    public function __construct(protected Document $document) {}
 
     /**
      * Get the underlying database document.
-     *
-     * @return Document
      */
     public function getDocument(): Document
     {
@@ -65,8 +41,6 @@ class Discount
 
     /**
      * Get the collection name for discounts.
-     *
-     * @return string
      */
     public static function getName(): string
     {
@@ -75,8 +49,6 @@ class Discount
 
     /**
      * Get the discount ID.
-     *
-     * @return string
      */
     public function getId(): string
     {
@@ -85,20 +57,14 @@ class Discount
 
     /**
      * Get the coupon ID this discount was created from.
-     *
-     * @return string
      */
     public function getCouponId(): string
     {
-        return $this->document->getAttribute('couponId', '');
+        return (string) $this->document->getAttribute('couponId', '');
     }
 
     /**
      * Set the coupon ID.
-     *
-     * @param string $couponId
-     *
-     * @return self
      */
     public function setCouponId(string $couponId): self
     {
@@ -109,20 +75,14 @@ class Discount
 
     /**
      * Get the subscription ID this discount is applied to.
-     *
-     * @return string
      */
     public function getSubscriptionId(): string
     {
-        return $this->document->getAttribute('subscriptionId', '');
+        return (string) $this->document->getAttribute('subscriptionId', '');
     }
 
     /**
      * Set the subscription ID.
-     *
-     * @param string $subscriptionId
-     *
-     * @return self
      */
     public function setSubscriptionId(string $subscriptionId): self
     {
@@ -133,20 +93,14 @@ class Discount
 
     /**
      * Get the entity ID that owns this discount.
-     *
-     * @return string
      */
     public function getEntityId(): string
     {
-        return $this->document->getAttribute('entityId', '');
+        return (string) $this->document->getAttribute('entityId', '');
     }
 
     /**
      * Set the entity ID.
-     *
-     * @param string $entityId
-     *
-     * @return self
      */
     public function setEntityId(string $entityId): self
     {
@@ -156,45 +110,35 @@ class Discount
     }
 
     /**
-     * Get the discount type ('fixed' or 'percentage'), inherited from the coupon.
-     *
-     * @return string One of TYPE_* constants
+     * Get the discount type, inherited from the coupon.
      */
-    public function getType(): string
+    public function getType(): CouponType
     {
-        return $this->document->getAttribute('type', '');
+        return CouponType::from((string) $this->document->getAttribute('type', 'fixed'));
     }
 
     /**
      * Set the discount type.
-     *
-     * @param string $type One of TYPE_* constants
-     *
-     * @return self
      */
-    public function setType(string $type): self
+    public function setType(CouponType $type): self
     {
-        $this->document->setAttribute('type', $type);
+        $this->document->setAttribute('type', $type->value);
 
         return $this;
     }
 
     /**
      * Get the discount value (dollar amount for fixed, percentage for percentage type).
-     *
-     * @return float
      */
     public function getValue(): float
     {
-        return $this->document->getAttribute('value', 0.0);
+        return (float) $this->document->getAttribute('value', 0.0);
     }
 
     /**
      * Set the discount value.
      *
-     * @param float $value Dollar amount for fixed type, percentage (e.g., 50.0) for percentage type
-     *
-     * @return self
+     * @param  float  $value  Dollar amount for fixed type, percentage (e.g., 50.0) for percentage type
      */
     public function setValue(float $value): self
     {
@@ -205,24 +149,18 @@ class Discount
 
     /**
      * Get the discount duration.
-     *
-     * @return string One of DURATION_* constants
      */
-    public function getDuration(): string
+    public function getDuration(): CouponDuration
     {
-        return $this->document->getAttribute('duration', '');
+        return CouponDuration::from((string) $this->document->getAttribute('duration', 'once'));
     }
 
     /**
      * Set the discount duration.
-     *
-     * @param string $duration One of DURATION_* constants
-     *
-     * @return self
      */
-    public function setDuration(string $duration): self
+    public function setDuration(CouponDuration $duration): self
     {
-        $this->document->setAttribute('duration', $duration);
+        $this->document->setAttribute('duration', $duration->value);
 
         return $this;
     }
@@ -237,27 +175,29 @@ class Discount
      */
     public function getScope(): ?array
     {
-        return $this->document->getAttribute('scope');
+        $scope = $this->document->getAttribute('scope');
+
+        if (\is_string($scope)) {
+            return (array) \json_decode($scope, true);
+        }
+
+        return $scope;
     }
 
     /**
      * Set the discount scope.
      *
-     * @param array<string, mixed>|null $scope Null for invoice-level, array for line-level
-     *
-     * @return self
+     * @param  array<string, mixed>|null  $scope  Null for invoice-level, array for line-level
      */
     public function setScope(?array $scope): self
     {
-        $this->document->setAttribute('scope', $scope);
+        $this->document->setAttribute('scope', $scope !== null ? \json_encode($scope) : null);
 
         return $this;
     }
 
     /**
      * Get the original total number of cycles (null for forever).
-     *
-     * @return int|null
      */
     public function getCyclesTotal(): ?int
     {
@@ -267,9 +207,7 @@ class Discount
     /**
      * Set the original total number of cycles.
      *
-     * @param int|null $cyclesTotal Null for forever duration
-     *
-     * @return self
+     * @param  int|null  $cyclesTotal  Null for forever duration
      */
     public function setCyclesTotal(?int $cyclesTotal): self
     {
@@ -280,10 +218,6 @@ class Discount
 
     /**
      * Get the remaining number of cycles (null for forever).
-     *
-     * Decremented each billing cycle until 0, at which point status becomes exhausted.
-     *
-     * @return int|null
      */
     public function getCyclesRemaining(): ?int
     {
@@ -293,9 +227,7 @@ class Discount
     /**
      * Set the remaining number of cycles.
      *
-     * @param int|null $cyclesRemaining Null for forever duration
-     *
-     * @return self
+     * @param  int|null  $cyclesRemaining  Null for forever duration
      */
     public function setCyclesRemaining(?int $cyclesRemaining): self
     {
@@ -306,44 +238,34 @@ class Discount
 
     /**
      * Get the discount status.
-     *
-     * @return string One of STATUS_* constants
      */
-    public function getStatus(): string
+    public function getStatus(): DiscountStatus
     {
-        return $this->document->getAttribute('status', '');
+        return DiscountStatus::from((string) $this->document->getAttribute('status', 'active'));
     }
 
     /**
      * Set the discount status.
-     *
-     * @param string $status One of STATUS_* constants
-     *
-     * @return self
      */
-    public function setStatus(string $status): self
+    public function setStatus(DiscountStatus $status): self
     {
-        $this->document->setAttribute('status', $status);
+        $this->document->setAttribute('status', $status->value);
 
         return $this;
     }
 
     /**
      * Get the datetime when the discount was applied.
-     *
-     * @return string
      */
     public function getAppliedAt(): string
     {
-        return $this->document->getAttribute('appliedAt', '');
+        return (string) $this->document->getAttribute('appliedAt', '');
     }
 
     /**
      * Set the datetime when the discount was applied.
      *
-     * @param string $appliedAt ISO 8601 datetime string
-     *
-     * @return self
+     * @param  string  $appliedAt  ISO 8601 datetime string
      */
     public function setAppliedAt(string $appliedAt): self
     {
@@ -354,8 +276,6 @@ class Discount
 
     /**
      * Get the datetime when the discount was exhausted.
-     *
-     * @return string|null
      */
     public function getExhaustedAt(): ?string
     {
@@ -365,9 +285,7 @@ class Discount
     /**
      * Set the datetime when the discount was exhausted.
      *
-     * @param string|null $exhaustedAt ISO 8601 datetime string or null
-     *
-     * @return self
+     * @param  string|null  $exhaustedAt  ISO 8601 datetime string or null
      */
     public function setExhaustedAt(?string $exhaustedAt): self
     {
@@ -378,8 +296,6 @@ class Discount
 
     /**
      * Get the datetime when the discount was cancelled.
-     *
-     * @return string|null
      */
     public function getCancelledAt(): ?string
     {
@@ -389,9 +305,7 @@ class Discount
     /**
      * Set the datetime when the discount was cancelled.
      *
-     * @param string|null $cancelledAt ISO 8601 datetime string or null
-     *
-     * @return self
+     * @param  string|null  $cancelledAt  ISO 8601 datetime string or null
      */
     public function setCancelledAt(?string $cancelledAt): self
     {
@@ -407,57 +321,49 @@ class Discount
      */
     public function getMetadata(): array
     {
-        return $this->document->getAttribute('metadata', []);
+        $meta = $this->document->getAttribute('metadata', []);
+
+        return \is_string($meta) ? (array) \json_decode($meta, true) : $meta;
     }
 
     /**
      * Set the discount metadata.
      *
-     * @param array<string, mixed> $metadata
-     *
-     * @return self
+     * @param  array<string, mixed>  $metadata
      */
     public function setMetadata(array $metadata): self
     {
-        $this->document->setAttribute('metadata', $metadata);
+        $this->document->setAttribute('metadata', \json_encode($metadata));
 
         return $this;
     }
 
     /**
      * Check if this discount is currently active.
-     *
-     * @return bool
      */
     public function isActive(): bool
     {
-        return $this->getStatus() === self::STATUS_ACTIVE;
+        return $this->getStatus() === DiscountStatus::Active;
     }
 
     /**
      * Check if this discount has been exhausted (all cycles used).
-     *
-     * @return bool
      */
     public function isExhausted(): bool
     {
-        return $this->getStatus() === self::STATUS_EXHAUSTED;
+        return $this->getStatus() === DiscountStatus::Exhausted;
     }
 
     /**
      * Check if this discount has been cancelled.
-     *
-     * @return bool
      */
     public function isCancelled(): bool
     {
-        return $this->getStatus() === self::STATUS_CANCELLED;
+        return $this->getStatus() === DiscountStatus::Cancelled;
     }
 
     /**
      * Check if this is an invoice-level discount (scope is null).
-     *
-     * @return bool
      */
     public function isInvoiceLevel(): bool
     {
@@ -466,8 +372,6 @@ class Discount
 
     /**
      * Check if this is a line-level discount (scope has resources).
-     *
-     * @return bool
      */
     public function isLineLevel(): bool
     {
@@ -492,21 +396,17 @@ class Discount
 
     /**
      * Check if this is a fixed-type discount.
-     *
-     * @return bool
      */
     public function isFixed(): bool
     {
-        return $this->getType() === self::TYPE_FIXED;
+        return $this->getType() === CouponType::Fixed;
     }
 
     /**
      * Check if this is a percentage-type discount.
-     *
-     * @return bool
      */
     public function isPercentage(): bool
     {
-        return $this->getType() === self::TYPE_PERCENTAGE;
+        return $this->getType() === CouponType::Percentage;
     }
 }

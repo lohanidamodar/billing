@@ -16,36 +16,14 @@ use Utopia\Database\Document;
 class Transaction
 {
     /**
-     * Transaction type constants.
-     */
-    public const TYPE_GATEWAY_CHARGE = 'gateway_charge';
-    public const TYPE_GATEWAY_REFUND = 'gateway_refund';
-    public const TYPE_WALLET_TOPUP = 'wallet_topup';
-    public const TYPE_WALLET_DEDUCTION = 'wallet_deduction';
-    public const TYPE_WALLET_REFUND = 'wallet_refund';
-    public const TYPE_COUPON_CREDIT = 'coupon_credit';
-    public const TYPE_CREDIT_EXPIRY = 'credit_expiry';
-
-    /**
-     * Transaction status constants.
-     */
-    public const STATUS_PENDING = 'pending';
-    public const STATUS_SUCCEEDED = 'succeeded';
-    public const STATUS_FAILED = 'failed';
-
-    /**
      * Transaction constructor.
      *
-     * @param Document $document The underlying database document
+     * @param  Document  $document  The underlying database document
      */
-    public function __construct(protected Document $document)
-    {
-    }
+    public function __construct(protected Document $document) {}
 
     /**
      * Get the underlying database document.
-     *
-     * @return Document
      */
     public function getDocument(): Document
     {
@@ -54,8 +32,6 @@ class Transaction
 
     /**
      * Get the collection name for transactions.
-     *
-     * @return string
      */
     public static function getName(): string
     {
@@ -64,8 +40,6 @@ class Transaction
 
     /**
      * Get the transaction ID.
-     *
-     * @return string
      */
     public function getId(): string
     {
@@ -74,20 +48,14 @@ class Transaction
 
     /**
      * Get the entity ID that owns this transaction.
-     *
-     * @return string
      */
     public function getEntityId(): string
     {
-        return $this->document->getAttribute('entityId', '');
+        return (string) $this->document->getAttribute('entityId', '');
     }
 
     /**
      * Set the entity ID.
-     *
-     * @param string $entityId
-     *
-     * @return self
      */
     public function setEntityId(string $entityId): self
     {
@@ -98,22 +66,14 @@ class Transaction
 
     /**
      * Get the invoice ID linked to this transaction.
-     *
-     * Every transaction must have an invoiceId.
-     *
-     * @return string
      */
     public function getInvoiceId(): string
     {
-        return $this->document->getAttribute('invoiceId', '');
+        return (string) $this->document->getAttribute('invoiceId', '');
     }
 
     /**
      * Set the invoice ID.
-     *
-     * @param string $invoiceId
-     *
-     * @return self
      */
     public function setInvoiceId(string $invoiceId): self
     {
@@ -124,44 +84,32 @@ class Transaction
 
     /**
      * Get the transaction type.
-     *
-     * @return string One of TYPE_* constants
      */
-    public function getType(): string
+    public function getType(): TransactionType
     {
-        return $this->document->getAttribute('type', '');
+        return TransactionType::from((string) $this->document->getAttribute('type', 'gateway_charge'));
     }
 
     /**
      * Set the transaction type.
-     *
-     * @param string $type One of TYPE_* constants
-     *
-     * @return self
      */
-    public function setType(string $type): self
+    public function setType(TransactionType $type): self
     {
-        $this->document->setAttribute('type', $type);
+        $this->document->setAttribute('type', $type->value);
 
         return $this;
     }
 
     /**
      * Get the transaction amount.
-     *
-     * @return float
      */
     public function getAmount(): float
     {
-        return $this->document->getAttribute('amount', 0.0);
+        return (float) $this->document->getAttribute('amount', 0.0);
     }
 
     /**
      * Set the transaction amount.
-     *
-     * @param float $amount
-     *
-     * @return self
      */
     public function setAmount(float $amount): self
     {
@@ -172,24 +120,18 @@ class Transaction
 
     /**
      * Get the transaction status.
-     *
-     * @return string One of STATUS_* constants
      */
-    public function getStatus(): string
+    public function getStatus(): TransactionStatus
     {
-        return $this->document->getAttribute('status', '');
+        return TransactionStatus::from((string) $this->document->getAttribute('status', 'pending'));
     }
 
     /**
      * Set the transaction status.
-     *
-     * @param string $status One of STATUS_* constants
-     *
-     * @return self
      */
-    public function setStatus(string $status): self
+    public function setStatus(TransactionStatus $status): self
     {
-        $this->document->setAttribute('status', $status);
+        $this->document->setAttribute('status', $status->value);
 
         return $this;
     }
@@ -206,10 +148,6 @@ class Transaction
 
     /**
      * Set the wallet ID.
-     *
-     * @param string|null $walletId
-     *
-     * @return self
      */
     public function setWalletId(?string $walletId): self
     {
@@ -230,10 +168,6 @@ class Transaction
 
     /**
      * Set the provider payment ID.
-     *
-     * @param string|null $providerPaymentId
-     *
-     * @return self
      */
     public function setProviderPaymentId(?string $providerPaymentId): self
     {
@@ -244,20 +178,16 @@ class Transaction
 
     /**
      * Get the transaction description.
-     *
-     * @return string
      */
     public function getDescription(): string
     {
-        return $this->document->getAttribute('description', '');
+        return (string) $this->document->getAttribute('description', '');
     }
 
     /**
      * Set the transaction description.
      *
-     * @param string $description Human-readable description
-     *
-     * @return self
+     * @param  string  $description  Human-readable description
      */
     public function setDescription(string $description): self
     {
@@ -273,93 +203,68 @@ class Transaction
      */
     public function getMetadata(): array
     {
-        return $this->document->getAttribute('metadata', []);
+        $meta = $this->document->getAttribute('metadata', []);
+
+        return \is_string($meta) ? (array) \json_decode($meta, true) : $meta;
     }
 
     /**
      * Set the transaction metadata.
      *
-     * @param array<string, mixed> $metadata
-     *
-     * @return self
+     * @param  array<string, mixed>  $metadata
      */
     public function setMetadata(array $metadata): self
     {
-        $this->document->setAttribute('metadata', $metadata);
+        $this->document->setAttribute('metadata', \json_encode($metadata));
 
         return $this;
     }
 
     /**
      * Check if this is a wallet-related transaction.
-     *
-     * @return bool
      */
     public function isWalletTransaction(): bool
     {
-        return match ($this->getType()) {
-            self::TYPE_WALLET_TOPUP,
-            self::TYPE_WALLET_DEDUCTION,
-            self::TYPE_WALLET_REFUND => true,
-            default => false,
-        };
+        return $this->getType()->isWallet();
     }
 
     /**
      * Check if this is a gateway-related transaction.
-     *
-     * @return bool
      */
     public function isGatewayTransaction(): bool
     {
-        return match ($this->getType()) {
-            self::TYPE_GATEWAY_CHARGE,
-            self::TYPE_GATEWAY_REFUND => true,
-            default => false,
-        };
+        return $this->getType()->isGateway();
     }
 
     /**
      * Check if this is a credit-related transaction.
-     *
-     * @return bool
      */
     public function isCreditTransaction(): bool
     {
-        return match ($this->getType()) {
-            self::TYPE_COUPON_CREDIT,
-            self::TYPE_CREDIT_EXPIRY => true,
-            default => false,
-        };
+        return $this->getType()->isCredit();
     }
 
     /**
      * Check if the transaction has succeeded.
-     *
-     * @return bool
      */
     public function isSucceeded(): bool
     {
-        return $this->getStatus() === self::STATUS_SUCCEEDED;
+        return $this->getStatus() === TransactionStatus::Succeeded;
     }
 
     /**
      * Check if the transaction has failed.
-     *
-     * @return bool
      */
     public function isFailed(): bool
     {
-        return $this->getStatus() === self::STATUS_FAILED;
+        return $this->getStatus() === TransactionStatus::Failed;
     }
 
     /**
      * Check if the transaction is pending.
-     *
-     * @return bool
      */
     public function isPending(): bool
     {
-        return $this->getStatus() === self::STATUS_PENDING;
+        return $this->getStatus() === TransactionStatus::Pending;
     }
 }

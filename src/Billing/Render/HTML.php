@@ -23,22 +23,20 @@ class HTML extends Renderer
 {
     /**
      * Path to the default invoice template.
-     *
-     * @var string
      */
     protected string $defaultTemplate;
 
     /**
      * HTML renderer constructor.
      *
-     * @param string|null $defaultTemplate Path to the default .phtml template.
-     *                                     Falls back to the bundled template if null.
+     * @param  string|null  $defaultTemplate  Path to the default .phtml template.
+     *                                        Falls back to the bundled template if null.
      */
     public function __construct(?string $defaultTemplate = null)
     {
         $this->defaultTemplate = $defaultTemplate
-            ?? realpath(__DIR__ . '/../../../templates/invoice.phtml')
-            ?: __DIR__ . '/../../../templates/invoice.phtml';
+            ?? realpath(__DIR__.'/../../../templates/invoice.phtml')
+            ?: __DIR__.'/../../../templates/invoice.phtml';
     }
 
     /**
@@ -49,21 +47,23 @@ class HTML extends Renderer
      * - 'entity'   (array)  — customer info (name, address, email, etc.)
      * - 'issuer'   (array)  — company/issuer info (name, address, taxId, etc.)
      *
-     * @param Invoice              $invoice The invoice to render
-     * @param array<string, mixed> $options Rendering options
-     *
+     * @param  Invoice  $invoice  The invoice to render
+     * @param  array<string, mixed>  $options  Rendering options
      * @return string The rendered HTML
      *
      * @throws \RuntimeException If the template file does not exist
      */
     public function render(Invoice $invoice, array $options = []): string
     {
+        /** @var string $template */
         $template = $options['template'] ?? $this->defaultTemplate;
+        /** @var array<string, mixed> $entity */
         $entity = $options['entity'] ?? [];
+        /** @var array<string, mixed> $issuer */
         $issuer = $options['issuer'] ?? [];
         $items = $invoice->getItems();
 
-        if (!\file_exists($template)) {
+        if (! \file_exists($template)) {
             throw new \RuntimeException("Template not found: {$template}");
         }
 

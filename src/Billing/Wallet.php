@@ -18,16 +18,12 @@ class Wallet
     /**
      * Wallet constructor.
      *
-     * @param Document $document The underlying database document
+     * @param  Document  $document  The underlying database document
      */
-    public function __construct(protected Document $document)
-    {
-    }
+    public function __construct(protected Document $document) {}
 
     /**
      * Get the underlying database document.
-     *
-     * @return Document
      */
     public function getDocument(): Document
     {
@@ -36,8 +32,6 @@ class Wallet
 
     /**
      * Get the collection name for wallets.
-     *
-     * @return string
      */
     public static function getName(): string
     {
@@ -46,8 +40,6 @@ class Wallet
 
     /**
      * Get the wallet ID.
-     *
-     * @return string
      */
     public function getId(): string
     {
@@ -56,20 +48,14 @@ class Wallet
 
     /**
      * Get the entity ID that owns this wallet.
-     *
-     * @return string
      */
     public function getEntityId(): string
     {
-        return $this->document->getAttribute('entityId', '');
+        return (string) $this->document->getAttribute('entityId', '');
     }
 
     /**
      * Set the entity ID.
-     *
-     * @param string $entityId
-     *
-     * @return self
      */
     public function setEntityId(string $entityId): self
     {
@@ -80,20 +66,14 @@ class Wallet
 
     /**
      * Get the current wallet balance.
-     *
-     * @return float
      */
     public function getBalance(): float
     {
-        return $this->document->getAttribute('balance', 0.0);
+        return (float) $this->document->getAttribute('balance', 0.0);
     }
 
     /**
      * Set the wallet balance.
-     *
-     * @param float $balance
-     *
-     * @return self
      */
     public function setBalance(float $balance): self
     {
@@ -115,9 +95,7 @@ class Wallet
     /**
      * Set the wallet currency code.
      *
-     * @param string $currency ISO 4217 currency code (e.g., 'USD')
-     *
-     * @return self
+     * @param  string  $currency  ISO 4217 currency code (e.g., 'USD')
      */
     public function setCurrency(string $currency): self
     {
@@ -133,19 +111,19 @@ class Wallet
      */
     public function getMetadata(): array
     {
-        return $this->document->getAttribute('metadata', []);
+        $meta = $this->document->getAttribute('metadata', []);
+
+        return \is_string($meta) ? (array) \json_decode($meta, true) : $meta;
     }
 
     /**
      * Set the wallet metadata.
      *
-     * @param array<string, mixed> $metadata
-     *
-     * @return self
+     * @param  array<string, mixed>  $metadata
      */
     public function setMetadata(array $metadata): self
     {
-        $this->document->setAttribute('metadata', $metadata);
+        $this->document->setAttribute('metadata', \json_encode($metadata));
 
         return $this;
     }
@@ -153,9 +131,7 @@ class Wallet
     /**
      * Check if the wallet has sufficient balance for a given amount.
      *
-     * @param float $amount The amount to check against the balance
-     *
-     * @return bool
+     * @param  float  $amount  The amount to check against the balance
      */
     public function hasSufficientBalance(float $amount): bool
     {
@@ -164,8 +140,6 @@ class Wallet
 
     /**
      * Check if the wallet has a zero balance.
-     *
-     * @return bool
      */
     public function isEmpty(): bool
     {

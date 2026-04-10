@@ -22,9 +22,8 @@ abstract class Renderer
     /**
      * Render an invoice to a string in the target format.
      *
-     * @param Invoice              $invoice The invoice to render
-     * @param array<string, mixed> $options Rendering options (template, entity, issuer, etc.)
-     *
+     * @param  Invoice  $invoice  The invoice to render
+     * @param  array<string, mixed>  $options  Rendering options (template, entity, issuer, etc.)
      * @return string The rendered output
      */
     abstract public function render(Invoice $invoice, array $options = []): string;

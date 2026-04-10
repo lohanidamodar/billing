@@ -55,14 +55,13 @@ $e = function (?string $value): string {
     return \htmlspecialchars($value ?? '', \ENT_QUOTES | \ENT_HTML5, 'UTF-8');
 };
 
-$statusLabel = \strtoupper($invoice->getStatus());
+$statusLabel = \strtoupper($invoice->getStatus()->value);
 $statusColor = match ($invoice->getStatus()) {
-    'paid' => '#16a34a',
-    'draft' => '#6b7280',
-    'finalized' => '#2563eb',
-    'failed' => '#dc2626',
-    'voided' => '#9333ea',
-    default => '#6b7280',
+    \Utopia\Billing\InvoiceStatus::Paid => '#16a34a',
+    \Utopia\Billing\InvoiceStatus::Draft => '#6b7280',
+    \Utopia\Billing\InvoiceStatus::Finalized => '#2563eb',
+    \Utopia\Billing\InvoiceStatus::Failed => '#dc2626',
+    \Utopia\Billing\InvoiceStatus::Voided => '#9333ea',
 };
 
 $isCreditNote = $invoice->isCreditNote();

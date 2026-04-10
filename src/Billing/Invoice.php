@@ -13,54 +13,42 @@ use Utopia\Database\Document;
  * with denormalized line items, computed totals, and payment tracking.
  *
  * Invoices are created at cycle end only and are immutable once finalized.
+ *
+ * Invoice types are app-defined strings — the library is type-agnostic.
+ * Common types: 'subscription', 'wallet_topup', 'credit_note'.
+ * The app may define any custom types (e.g., 'domain_purchase', 'addon_hipaa').
  */
 class Invoice
 {
     /**
-     * Invoice status constants.
-     */
-    public const STATUS_DRAFT = 'draft';
-    public const STATUS_FINALIZED = 'finalized';
-    public const STATUS_PAID = 'paid';
-    public const STATUS_FAILED = 'failed';
-    public const STATUS_VOIDED = 'voided';
-
-    /**
-     * Invoice type constants.
-     *
-     * These are the common types; the library is type-agnostic and
-     * accepts any string value the consuming app defines.
-     */
-    public const TYPE_SUBSCRIPTION = 'subscription';
-    public const TYPE_DOMAIN_PURCHASE = 'domain_purchase';
-    public const TYPE_DOMAIN_RENEWAL = 'domain_renewal';
-    public const TYPE_WALLET_TOPUP = 'wallet_topup';
-    public const TYPE_CREDIT_NOTE = 'credit_note';
-
-    /**
      * Line item type constants.
+     *
+     * These are the built-in line item types used by the finalization engine.
+     * Apps may extend with custom types.
      */
     public const ITEM_TYPE_PLAN = 'plan';
+
     public const ITEM_TYPE_USAGE = 'usage';
+
     public const ITEM_TYPE_ADDON = 'addon';
+
     public const ITEM_TYPE_DISCOUNT = 'discount';
+
     public const ITEM_TYPE_TAX = 'tax';
+
     public const ITEM_TYPE_PRORATION = 'proration';
+
     public const ITEM_TYPE_REFUND = 'refund';
 
     /**
      * Invoice constructor.
      *
-     * @param Document $document The underlying database document
+     * @param  Document  $document  The underlying database document
      */
-    public function __construct(protected Document $document)
-    {
-    }
+    public function __construct(protected Document $document) {}
 
     /**
      * Get the underlying database document.
-     *
-     * @return Document
      */
     public function getDocument(): Document
     {
@@ -69,8 +57,6 @@ class Invoice
 
     /**
      * Get the collection name for invoices.
-     *
-     * @return string
      */
     public static function getName(): string
     {
@@ -79,8 +65,6 @@ class Invoice
 
     /**
      * Get the invoice ID.
-     *
-     * @return string
      */
     public function getId(): string
     {
@@ -89,8 +73,6 @@ class Invoice
 
     /**
      * Get the subscription ID (null for one-off invoices).
-     *
-     * @return string|null
      */
     public function getSubscriptionId(): ?string
     {
@@ -99,10 +81,6 @@ class Invoice
 
     /**
      * Set the subscription ID.
-     *
-     * @param string|null $subscriptionId
-     *
-     * @return self
      */
     public function setSubscriptionId(?string $subscriptionId): self
     {
@@ -113,8 +91,6 @@ class Invoice
 
     /**
      * Get the reference invoice ID (set for credit notes).
-     *
-     * @return string|null
      */
     public function getReferenceInvoiceId(): ?string
     {
@@ -123,10 +99,6 @@ class Invoice
 
     /**
      * Set the reference invoice ID.
-     *
-     * @param string|null $referenceInvoiceId
-     *
-     * @return self
      */
     public function setReferenceInvoiceId(?string $referenceInvoiceId): self
     {
@@ -137,20 +109,14 @@ class Invoice
 
     /**
      * Get the entity ID.
-     *
-     * @return string
      */
     public function getEntityId(): string
     {
-        return $this->document->getAttribute('entityId', '');
+        return (string) $this->document->getAttribute('entityId', '');
     }
 
     /**
      * Set the entity ID.
-     *
-     * @param string $entityId
-     *
-     * @return self
      */
     public function setEntityId(string $entityId): self
     {
@@ -160,21 +126,17 @@ class Invoice
     }
 
     /**
-     * Get the invoice type.
-     *
-     * @return string One of TYPE_* constants or an app-defined type
+     * Get the invoice type (app-defined string).
      */
     public function getType(): string
     {
-        return $this->document->getAttribute('type', '');
+        return (string) $this->document->getAttribute('type', '');
     }
 
     /**
-     * Set the invoice type.
+     * Set the invoice type (app-defined string).
      *
-     * @param string $type One of TYPE_* constants or an app-defined type
-     *
-     * @return self
+     * @param  string  $type  Any app-defined type string
      */
     public function setType(string $type): self
     {
@@ -185,20 +147,14 @@ class Invoice
 
     /**
      * Get the invoice number (e.g., INV-2026-00001).
-     *
-     * @return string
      */
     public function getNumber(): string
     {
-        return $this->document->getAttribute('number', '');
+        return (string) $this->document->getAttribute('number', '');
     }
 
     /**
      * Set the invoice number.
-     *
-     * @param string $number
-     *
-     * @return self
      */
     public function setNumber(string $number): self
     {
@@ -209,24 +165,18 @@ class Invoice
 
     /**
      * Get the invoice status.
-     *
-     * @return string One of STATUS_* constants
      */
-    public function getStatus(): string
+    public function getStatus(): InvoiceStatus
     {
-        return $this->document->getAttribute('status', '');
+        return InvoiceStatus::from((string) $this->document->getAttribute('status', 'draft'));
     }
 
     /**
      * Set the invoice status.
-     *
-     * @param string $status One of STATUS_* constants
-     *
-     * @return self
      */
-    public function setStatus(string $status): self
+    public function setStatus(InvoiceStatus $status): self
     {
-        $this->document->setAttribute('status', $status);
+        $this->document->setAttribute('status', $status->value);
 
         return $this;
     }
@@ -241,19 +191,23 @@ class Invoice
      */
     public function getItems(): array
     {
-        return $this->document->getAttribute('items', []);
+        $items = $this->document->getAttribute('items', []);
+
+        if (\is_string($items)) {
+            return (array) \json_decode($items, true);
+        }
+
+        return $items;
     }
 
     /**
      * Set the invoice line items.
      *
-     * @param array<int, array<string, mixed>> $items
-     *
-     * @return self
+     * @param  array<int, array<string, mixed>>  $items
      */
     public function setItems(array $items): self
     {
-        $this->document->setAttribute('items', $items);
+        $this->document->setAttribute('items', \json_encode($items));
 
         return $this;
     }
@@ -261,35 +215,27 @@ class Invoice
     /**
      * Add a single line item to the invoice.
      *
-     * @param array<string, mixed> $item Line item array
-     *
-     * @return self
+     * @param  array<string, mixed>  $item  Line item array
      */
     public function addItem(array $item): self
     {
         $items = $this->getItems();
         $items[] = $item;
-        $this->document->setAttribute('items', $items);
+        $this->document->setAttribute('items', \json_encode($items));
 
         return $this;
     }
 
     /**
      * Get the subtotal (sum of plan + usage + addon items, before discounts and tax).
-     *
-     * @return float
      */
     public function getSubtotal(): float
     {
-        return $this->document->getAttribute('subtotal', 0.0);
+        return (float) $this->document->getAttribute('subtotal', 0.0);
     }
 
     /**
      * Set the subtotal.
-     *
-     * @param float $subtotal
-     *
-     * @return self
      */
     public function setSubtotal(float $subtotal): self
     {
@@ -300,20 +246,14 @@ class Invoice
 
     /**
      * Get the discount total (sum of discount line items, negative value).
-     *
-     * @return float
      */
     public function getDiscountTotal(): float
     {
-        return $this->document->getAttribute('discountTotal', 0.0);
+        return (float) $this->document->getAttribute('discountTotal', 0.0);
     }
 
     /**
      * Set the discount total.
-     *
-     * @param float $discountTotal
-     *
-     * @return self
      */
     public function setDiscountTotal(float $discountTotal): self
     {
@@ -324,20 +264,14 @@ class Invoice
 
     /**
      * Get the tax total (sum of tax line items).
-     *
-     * @return float
      */
     public function getTaxTotal(): float
     {
-        return $this->document->getAttribute('taxTotal', 0.0);
+        return (float) $this->document->getAttribute('taxTotal', 0.0);
     }
 
     /**
      * Set the tax total.
-     *
-     * @param float $taxTotal
-     *
-     * @return self
      */
     public function setTaxTotal(float $taxTotal): self
     {
@@ -348,20 +282,14 @@ class Invoice
 
     /**
      * Get the invoice total (subtotal + discountTotal + taxTotal).
-     *
-     * @return float
      */
     public function getTotal(): float
     {
-        return $this->document->getAttribute('total', 0.0);
+        return (float) $this->document->getAttribute('total', 0.0);
     }
 
     /**
      * Set the invoice total.
-     *
-     * @param float $total
-     *
-     * @return self
      */
     public function setTotal(float $total): self
     {
@@ -372,20 +300,14 @@ class Invoice
 
     /**
      * Get the amount deducted from the wallet during payment.
-     *
-     * @return float
      */
     public function getWalletDeducted(): float
     {
-        return $this->document->getAttribute('walletDeducted', 0.0);
+        return (float) $this->document->getAttribute('walletDeducted', 0.0);
     }
 
     /**
      * Set the amount deducted from the wallet during payment.
-     *
-     * @param float $walletDeducted
-     *
-     * @return self
      */
     public function setWalletDeducted(float $walletDeducted): self
     {
@@ -396,20 +318,14 @@ class Invoice
 
     /**
      * Get the amount charged to the payment gateway.
-     *
-     * @return float
      */
     public function getGatewayCharged(): float
     {
-        return $this->document->getAttribute('gatewayCharged', 0.0);
+        return (float) $this->document->getAttribute('gatewayCharged', 0.0);
     }
 
     /**
      * Set the amount charged to the payment gateway.
-     *
-     * @param float $gatewayCharged
-     *
-     * @return self
      */
     public function setGatewayCharged(float $gatewayCharged): self
     {
@@ -420,20 +336,16 @@ class Invoice
 
     /**
      * Get the invoice currency code.
-     *
-     * @return string
      */
     public function getCurrency(): string
     {
-        return $this->document->getAttribute('currency', '');
+        return (string) $this->document->getAttribute('currency', '');
     }
 
     /**
      * Set the invoice currency code.
      *
-     * @param string $currency ISO 4217 currency code (e.g., 'USD')
-     *
-     * @return self
+     * @param  string  $currency  ISO 4217 currency code (e.g., 'USD')
      */
     public function setCurrency(string $currency): self
     {
@@ -444,8 +356,6 @@ class Invoice
 
     /**
      * Get the invoice due date.
-     *
-     * @return string|null
      */
     public function getDueDate(): ?string
     {
@@ -455,9 +365,7 @@ class Invoice
     /**
      * Set the invoice due date.
      *
-     * @param string|null $dueDate ISO 8601 datetime string or null
-     *
-     * @return self
+     * @param  string|null  $dueDate  ISO 8601 datetime string or null
      */
     public function setDueDate(?string $dueDate): self
     {
@@ -468,8 +376,6 @@ class Invoice
 
     /**
      * Get the datetime when the invoice was paid.
-     *
-     * @return string|null
      */
     public function getPaidAt(): ?string
     {
@@ -479,9 +385,7 @@ class Invoice
     /**
      * Set the datetime when the invoice was paid.
      *
-     * @param string|null $paidAt ISO 8601 datetime string or null
-     *
-     * @return self
+     * @param  string|null  $paidAt  ISO 8601 datetime string or null
      */
     public function setPaidAt(?string $paidAt): self
     {
@@ -497,54 +401,43 @@ class Invoice
      */
     public function getMetadata(): array
     {
-        return $this->document->getAttribute('metadata', []);
+        $meta = $this->document->getAttribute('metadata', []);
+
+        return \is_string($meta) ? (array) \json_decode($meta, true) : $meta;
     }
 
     /**
      * Set the invoice metadata.
      *
-     * @param array<string, mixed> $metadata
-     *
-     * @return self
+     * @param  array<string, mixed>  $metadata
      */
     public function setMetadata(array $metadata): self
     {
-        $this->document->setAttribute('metadata', $metadata);
+        $this->document->setAttribute('metadata', \json_encode($metadata));
 
         return $this;
     }
 
     /**
      * Check if the invoice is in a finalized or later state (immutable).
-     *
-     * @return bool
      */
     public function isFinalized(): bool
     {
-        return match ($this->getStatus()) {
-            self::STATUS_FINALIZED,
-            self::STATUS_PAID,
-            self::STATUS_FAILED,
-            self::STATUS_VOIDED => true,
-            default => false,
-        };
+        return $this->getStatus()->isFinalized();
     }
 
     /**
      * Check if this invoice is a credit note.
-     *
-     * @return bool
      */
     public function isCreditNote(): bool
     {
-        return $this->getType() === self::TYPE_CREDIT_NOTE;
+        return $this->getType() === 'credit_note';
     }
 
     /**
      * Get items filtered by type.
      *
-     * @param string $type One of ITEM_TYPE_* constants
-     *
+     * @param  string  $type  One of ITEM_TYPE_* constants or any custom type
      * @return array<int, array<string, mixed>>
      */
     public function getItemsByType(string $type): array

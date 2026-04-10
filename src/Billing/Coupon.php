@@ -16,31 +16,14 @@ use Utopia\Database\Document;
 class Coupon
 {
     /**
-     * Coupon type constants.
-     */
-    public const TYPE_FIXED = 'fixed';
-    public const TYPE_PERCENTAGE = 'percentage';
-
-    /**
-     * Coupon duration constants.
-     */
-    public const DURATION_ONCE = 'once';
-    public const DURATION_REPEATING = 'repeating';
-    public const DURATION_FOREVER = 'forever';
-
-    /**
      * Coupon constructor.
      *
-     * @param Document $document The underlying database document
+     * @param  Document  $document  The underlying database document
      */
-    public function __construct(protected Document $document)
-    {
-    }
+    public function __construct(protected Document $document) {}
 
     /**
      * Get the underlying database document.
-     *
-     * @return Document
      */
     public function getDocument(): Document
     {
@@ -49,8 +32,6 @@ class Coupon
 
     /**
      * Get the collection name for coupons.
-     *
-     * @return string
      */
     public static function getName(): string
     {
@@ -59,8 +40,6 @@ class Coupon
 
     /**
      * Get the coupon ID.
-     *
-     * @return string
      */
     public function getId(): string
     {
@@ -69,20 +48,14 @@ class Coupon
 
     /**
      * Get the user-facing coupon code.
-     *
-     * @return string
      */
     public function getCode(): string
     {
-        return $this->document->getAttribute('code', '');
+        return (string) $this->document->getAttribute('code', '');
     }
 
     /**
      * Set the user-facing coupon code.
-     *
-     * @param string $code
-     *
-     * @return self
      */
     public function setCode(string $code): self
     {
@@ -92,45 +65,35 @@ class Coupon
     }
 
     /**
-     * Get the coupon type ('fixed' or 'percentage').
-     *
-     * @return string One of TYPE_* constants
+     * Get the coupon type.
      */
-    public function getType(): string
+    public function getType(): CouponType
     {
-        return $this->document->getAttribute('type', '');
+        return CouponType::from((string) $this->document->getAttribute('type', 'fixed'));
     }
 
     /**
      * Set the coupon type.
-     *
-     * @param string $type One of TYPE_* constants
-     *
-     * @return self
      */
-    public function setType(string $type): self
+    public function setType(CouponType $type): self
     {
-        $this->document->setAttribute('type', $type);
+        $this->document->setAttribute('type', $type->value);
 
         return $this;
     }
 
     /**
      * Get the coupon value (dollar amount for fixed, percentage for percentage type).
-     *
-     * @return float
      */
     public function getValue(): float
     {
-        return $this->document->getAttribute('value', 0.0);
+        return (float) $this->document->getAttribute('value', 0.0);
     }
 
     /**
      * Set the coupon value.
      *
-     * @param float $value Dollar amount for fixed type, percentage (e.g., 50.0) for percentage type
-     *
-     * @return self
+     * @param  float  $value  Dollar amount for fixed type, percentage (e.g., 50.0) for percentage type
      */
     public function setValue(float $value): self
     {
@@ -141,8 +104,6 @@ class Coupon
 
     /**
      * Get the currency for fixed-type coupons.
-     *
-     * @return string|null
      */
     public function getCurrency(): ?string
     {
@@ -152,9 +113,7 @@ class Coupon
     /**
      * Set the currency for fixed-type coupons.
      *
-     * @param string|null $currency ISO 4217 currency code or null
-     *
-     * @return self
+     * @param  string|null  $currency  ISO 4217 currency code or null
      */
     public function setCurrency(?string $currency): self
     {
@@ -165,24 +124,18 @@ class Coupon
 
     /**
      * Get the coupon duration.
-     *
-     * @return string One of DURATION_* constants
      */
-    public function getDuration(): string
+    public function getDuration(): CouponDuration
     {
-        return $this->document->getAttribute('duration', '');
+        return CouponDuration::from((string) $this->document->getAttribute('duration', 'once'));
     }
 
     /**
      * Set the coupon duration.
-     *
-     * @param string $duration One of DURATION_* constants
-     *
-     * @return self
      */
-    public function setDuration(string $duration): self
+    public function setDuration(CouponDuration $duration): self
     {
-        $this->document->setAttribute('duration', $duration);
+        $this->document->setAttribute('duration', $duration->value);
 
         return $this;
     }
@@ -199,10 +152,6 @@ class Coupon
 
     /**
      * Set the number of billing cycles for 'repeating' duration coupons.
-     *
-     * @param int|null $durationInCycles
-     *
-     * @return self
      */
     public function setDurationInCycles(?int $durationInCycles): self
     {
@@ -224,9 +173,7 @@ class Coupon
     /**
      * Set the maximum number of total redemptions allowed.
      *
-     * @param int|null $maxRedemptions Null for unlimited
-     *
-     * @return self
+     * @param  int|null  $maxRedemptions  Null for unlimited
      */
     public function setMaxRedemptions(?int $maxRedemptions): self
     {
@@ -237,20 +184,14 @@ class Coupon
 
     /**
      * Get the number of times this coupon has been redeemed.
-     *
-     * @return int
      */
     public function getTimesRedeemed(): int
     {
-        return $this->document->getAttribute('timesRedeemed', 0);
+        return (int) $this->document->getAttribute('timesRedeemed', 0);
     }
 
     /**
      * Set the number of times this coupon has been redeemed.
-     *
-     * @param int $timesRedeemed
-     *
-     * @return self
      */
     public function setTimesRedeemed(int $timesRedeemed): self
     {
@@ -261,8 +202,6 @@ class Coupon
 
     /**
      * Get the coupon template expiry datetime.
-     *
-     * @return string|null
      */
     public function getExpiresAt(): ?string
     {
@@ -272,9 +211,7 @@ class Coupon
     /**
      * Set the coupon template expiry datetime.
      *
-     * @param string|null $expiresAt ISO 8601 datetime string or null
-     *
-     * @return self
+     * @param  string|null  $expiresAt  ISO 8601 datetime string or null
      */
     public function setExpiresAt(?string $expiresAt): self
     {
@@ -290,39 +227,37 @@ class Coupon
      */
     public function getScope(): ?array
     {
-        return $this->document->getAttribute('scope');
+        $scope = $this->document->getAttribute('scope');
+
+        if (\is_string($scope)) {
+            return (array) \json_decode($scope, true);
+        }
+
+        return $scope;
     }
 
     /**
      * Set the coupon scope.
      *
-     * @param array<string, mixed>|null $scope Null means applies to everything
-     *
-     * @return self
+     * @param  array<string, mixed>|null  $scope  Null means applies to everything
      */
     public function setScope(?array $scope): self
     {
-        $this->document->setAttribute('scope', $scope);
+        $this->document->setAttribute('scope', $scope !== null ? \json_encode($scope) : null);
 
         return $this;
     }
 
     /**
      * Check if the coupon is active.
-     *
-     * @return bool
      */
     public function isActive(): bool
     {
-        return $this->document->getAttribute('active', false);
+        return (bool) $this->document->getAttribute('active', false);
     }
 
     /**
      * Set the coupon active status.
-     *
-     * @param bool $active
-     *
-     * @return self
      */
     public function setActive(bool $active): self
     {
@@ -338,27 +273,25 @@ class Coupon
      */
     public function getMetadata(): array
     {
-        return $this->document->getAttribute('metadata', []);
+        $meta = $this->document->getAttribute('metadata', []);
+
+        return \is_string($meta) ? (array) \json_decode($meta, true) : $meta;
     }
 
     /**
      * Set the coupon metadata.
      *
-     * @param array<string, mixed> $metadata
-     *
-     * @return self
+     * @param  array<string, mixed>  $metadata
      */
     public function setMetadata(array $metadata): self
     {
-        $this->document->setAttribute('metadata', $metadata);
+        $this->document->setAttribute('metadata', \json_encode($metadata));
 
         return $this;
     }
 
     /**
      * Check if the coupon can still be redeemed (active, not expired, under max redemptions).
-     *
-     * @return bool
      */
     public function isRedeemable(): bool
     {
@@ -367,7 +300,7 @@ class Coupon
         }
 
         $expiresAt = $this->getExpiresAt();
-        if ($expiresAt !== null && new \DateTime($expiresAt) < new \DateTime()) {
+        if ($expiresAt !== null && new \DateTime($expiresAt) < new \DateTime) {
             return false;
         }
 
@@ -381,21 +314,17 @@ class Coupon
 
     /**
      * Check if this is a fixed-type coupon.
-     *
-     * @return bool
      */
     public function isFixed(): bool
     {
-        return $this->getType() === self::TYPE_FIXED;
+        return $this->getType() === CouponType::Fixed;
     }
 
     /**
      * Check if this is a percentage-type coupon.
-     *
-     * @return bool
      */
     public function isPercentage(): bool
     {
-        return $this->getType() === self::TYPE_PERCENTAGE;
+        return $this->getType() === CouponType::Percentage;
     }
 }
