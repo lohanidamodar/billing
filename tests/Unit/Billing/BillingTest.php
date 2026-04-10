@@ -7,7 +7,7 @@ namespace Utopia\Tests\Unit\Billing;
 use DateTime;
 use PHPUnit\Framework\TestCase;
 use Utopia\Billing\Billing;
-use Utopia\Billing\BillingEvent;
+use Utopia\Billing\Event;
 use Utopia\Billing\ChangeType;
 use Utopia\Billing\Coupon;
 use Utopia\Billing\CouponDuration;
@@ -288,7 +288,7 @@ class BillingTest extends TestCase
     public function testBudgetReachedEvent(): void
     {
         $eventFired = false;
-        $this->billing->on(BillingEvent::SubscriptionBudgetReached, 'test', function () use (&$eventFired) {
+        $this->billing->on(Event::SubscriptionBudgetReached, 'test', function () use (&$eventFired) {
             $eventFired = true;
         });
 
@@ -902,13 +902,13 @@ class BillingTest extends TestCase
     {
         $events = [];
 
-        $this->billing->on(BillingEvent::SubscriptionCreated, 'test', function ($sub) use (&$events) {
+        $this->billing->on(Event::SubscriptionCreated, 'test', function ($sub) use (&$events) {
             $events[] = 'subscription.created';
         });
-        $this->billing->on(BillingEvent::InvoiceFinalized, 'test', function ($inv) use (&$events) {
+        $this->billing->on(Event::InvoiceFinalized, 'test', function ($inv) use (&$events) {
             $events[] = 'invoice.finalized';
         });
-        $this->billing->on(BillingEvent::InvoicePaid, 'test', function ($inv) use (&$events) {
+        $this->billing->on(Event::InvoicePaid, 'test', function ($inv) use (&$events) {
             $events[] = 'invoice.paid';
         });
 
@@ -926,10 +926,10 @@ class BillingTest extends TestCase
     {
         $count = 0;
 
-        $this->billing->on(BillingEvent::SubscriptionCreated, 'listener-1', function () use (&$count) {
+        $this->billing->on(Event::SubscriptionCreated, 'listener-1', function () use (&$count) {
             $count++;
         });
-        $this->billing->on(BillingEvent::SubscriptionCreated, 'listener-2', function () use (&$count) {
+        $this->billing->on(Event::SubscriptionCreated, 'listener-2', function () use (&$count) {
             $count++;
         });
 
@@ -1198,7 +1198,7 @@ class BillingTest extends TestCase
     public function testDiscountExhaustedEvent(): void
     {
         $exhaustedFired = false;
-        $this->billing->on(BillingEvent::DiscountExhausted, 'test', function () use (&$exhaustedFired) {
+        $this->billing->on(Event::DiscountExhausted, 'test', function () use (&$exhaustedFired) {
             $exhaustedFired = true;
         });
 
@@ -1218,7 +1218,7 @@ class BillingTest extends TestCase
     public function testWalletFundedEvent(): void
     {
         $eventFired = false;
-        $this->billing->on(BillingEvent::WalletFunded, 'test', function () use (&$eventFired) {
+        $this->billing->on(Event::WalletFunded, 'test', function () use (&$eventFired) {
             $eventFired = true;
         });
 
@@ -1231,7 +1231,7 @@ class BillingTest extends TestCase
     public function testWalletDeductedEvent(): void
     {
         $eventFired = false;
-        $this->billing->on(BillingEvent::WalletDeducted, 'test', function () use (&$eventFired) {
+        $this->billing->on(Event::WalletDeducted, 'test', function () use (&$eventFired) {
             $eventFired = true;
         });
 
@@ -1246,7 +1246,7 @@ class BillingTest extends TestCase
     public function testSubscriptionSuspendedEvent(): void
     {
         $eventFired = false;
-        $this->billing->on(BillingEvent::SubscriptionSuspended, 'test', function () use (&$eventFired) {
+        $this->billing->on(Event::SubscriptionSuspended, 'test', function () use (&$eventFired) {
             $eventFired = true;
         });
 
@@ -1260,7 +1260,7 @@ class BillingTest extends TestCase
     public function testTransactionCreatedEvent(): void
     {
         $eventFired = false;
-        $this->billing->on(BillingEvent::TransactionCreated, 'test', function () use (&$eventFired) {
+        $this->billing->on(Event::TransactionCreated, 'test', function () use (&$eventFired) {
             $eventFired = true;
         });
 
@@ -1273,16 +1273,16 @@ class BillingTest extends TestCase
     public function testUpgradeDowngradeEvents(): void
     {
         $events = [];
-        $this->billing->on(BillingEvent::SubscriptionUpgradePending, 'test', function () use (&$events) {
+        $this->billing->on(Event::SubscriptionUpgradePending, 'test', function () use (&$events) {
             $events[] = 'upgrade_pending';
         });
-        $this->billing->on(BillingEvent::SubscriptionUpgraded, 'test', function () use (&$events) {
+        $this->billing->on(Event::SubscriptionUpgraded, 'test', function () use (&$events) {
             $events[] = 'upgraded';
         });
-        $this->billing->on(BillingEvent::SubscriptionDowngradeScheduled, 'test', function () use (&$events) {
+        $this->billing->on(Event::SubscriptionDowngradeScheduled, 'test', function () use (&$events) {
             $events[] = 'downgrade_scheduled';
         });
-        $this->billing->on(BillingEvent::SubscriptionDowngraded, 'test', function () use (&$events) {
+        $this->billing->on(Event::SubscriptionDowngraded, 'test', function () use (&$events) {
             $events[] = 'downgraded';
         });
 

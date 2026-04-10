@@ -72,13 +72,13 @@ class Billing
      * Register an event listener.
      *
      * Follows the same pattern as utopia-php/database: named listeners
-     * with a BillingEvent enum. Pass null callback to unregister.
+     * with a Event enum. Pass null callback to unregister.
      *
-     * @param  BillingEvent  $event  The event
+     * @param  Event  $event  The event
      * @param  string  $name  Unique listener name (for removal)
      * @param  callable|null  $callback  The callback (null to remove)
      */
-    public function on(BillingEvent $event, string $name, ?callable $callback): self
+    public function on(Event $event, string $name, ?callable $callback): self
     {
         if ($callback === null) {
             unset($this->listeners[$event->value][$name]);
@@ -94,10 +94,10 @@ class Billing
     /**
      * Emit an event to all registered listeners.
      *
-     * @param  BillingEvent  $event  The event
+     * @param  Event  $event  The event
      * @param  mixed  $data  The event payload
      */
-    protected function emit(BillingEvent $event, mixed $data = null): void
+    protected function emit(Event $event, mixed $data = null): void
     {
         foreach ($this->listeners[$event->value] ?? [] as $callback) {
             $callback($data);
@@ -163,7 +163,7 @@ class Billing
         $doc = $this->adapter->createSubscription(new Document($data));
         $subscription = new Subscription($doc);
 
-        $this->emit(BillingEvent::SubscriptionCreated, $subscription);
+        $this->emit(Event::SubscriptionCreated, $subscription);
 
         return $subscription;
     }
@@ -232,7 +232,7 @@ class Billing
         $doc = $this->adapter->updateSubscription($subscriptionId, $subscription->getDocument());
         $subscription = new Subscription($doc);
 
-        $this->emit(BillingEvent::SubscriptionCanceled, $subscription);
+        $this->emit(Event::SubscriptionCanceled, $subscription);
 
         return $subscription;
     }
@@ -265,7 +265,7 @@ class Billing
             $subscription->setCancelAtPeriodEnd(false);
             $doc = $this->adapter->updateSubscription($subscriptionId, $subscription->getDocument());
             $subscription = new Subscription($doc);
-            $this->emit(BillingEvent::SubscriptionCanceled, $subscription);
+            $this->emit(Event::SubscriptionCanceled, $subscription);
 
             return $subscription;
         }
@@ -277,7 +277,7 @@ class Billing
             $subscription->setPendingChangeType(null);
             $subscription->setPendingChangedAt(null);
 
-            $this->emit(BillingEvent::SubscriptionDowngraded, $subscription);
+            $this->emit(Event::SubscriptionDowngraded, $subscription);
         }
 
         // Advance billing period
@@ -293,7 +293,7 @@ class Billing
         $doc = $this->adapter->updateSubscription($subscriptionId, $subscription->getDocument());
         $subscription = new Subscription($doc);
 
-        $this->emit(BillingEvent::SubscriptionRenewed, $subscription);
+        $this->emit(Event::SubscriptionRenewed, $subscription);
 
         return $subscription;
     }
@@ -338,7 +338,7 @@ class Billing
         $doc = $this->adapter->updateSubscription($subscriptionId, $subscription->getDocument());
         $subscription = new Subscription($doc);
 
-        $this->emit(BillingEvent::SubscriptionUpgradePending, $subscription);
+        $this->emit(Event::SubscriptionUpgradePending, $subscription);
 
         return $subscription;
     }
@@ -375,7 +375,7 @@ class Billing
         $doc = $this->adapter->updateSubscription($subscriptionId, $subscription->getDocument());
         $subscription = new Subscription($doc);
 
-        $this->emit(BillingEvent::SubscriptionUpgraded, $subscription);
+        $this->emit(Event::SubscriptionUpgraded, $subscription);
 
         return $subscription;
     }
@@ -417,7 +417,7 @@ class Billing
         $doc = $this->adapter->updateSubscription($subscriptionId, $subscription->getDocument());
         $subscription = new Subscription($doc);
 
-        $this->emit(BillingEvent::SubscriptionUpgradeFailed, $subscription);
+        $this->emit(Event::SubscriptionUpgradeFailed, $subscription);
 
         return $subscription;
     }
@@ -454,7 +454,7 @@ class Billing
         $doc = $this->adapter->updateSubscription($subscriptionId, $subscription->getDocument());
         $subscription = new Subscription($doc);
 
-        $this->emit(BillingEvent::SubscriptionDowngradeScheduled, $subscription);
+        $this->emit(Event::SubscriptionDowngradeScheduled, $subscription);
 
         return $subscription;
     }
@@ -508,7 +508,7 @@ class Billing
         $doc = $this->adapter->updateSubscription($subscriptionId, $subscription->getDocument());
         $subscription = new Subscription($doc);
 
-        $this->emit(BillingEvent::SubscriptionDowngraded, $subscription);
+        $this->emit(Event::SubscriptionDowngraded, $subscription);
 
         return $subscription;
     }
@@ -567,9 +567,9 @@ class Billing
             $subscription->setBudgetLimitReached($reached);
 
             if ($reached && ! $previouslyReached) {
-                $this->emit(BillingEvent::SubscriptionBudgetReached, $subscription);
+                $this->emit(Event::SubscriptionBudgetReached, $subscription);
             } elseif (! $reached && $amount >= $budget * 0.8 && ! $previouslyReached) {
-                $this->emit(BillingEvent::SubscriptionBudgetWarning, $subscription);
+                $this->emit(Event::SubscriptionBudgetWarning, $subscription);
             }
         }
 
@@ -606,7 +606,7 @@ class Billing
         $doc = $this->adapter->updateSubscription($subscriptionId, $subscription->getDocument());
         $subscription = new Subscription($doc);
 
-        $this->emit(BillingEvent::PaymentFailed, $subscription);
+        $this->emit(Event::PaymentFailed, $subscription);
 
         return $subscription;
     }
@@ -658,7 +658,7 @@ class Billing
         $doc = $this->adapter->updateSubscription($subscriptionId, $subscription->getDocument());
         $subscription = new Subscription($doc);
 
-        $this->emit(BillingEvent::SubscriptionSuspended, $subscription);
+        $this->emit(Event::SubscriptionSuspended, $subscription);
 
         return $subscription;
     }
@@ -885,7 +885,7 @@ class Billing
                     if ($newRemaining <= 0) {
                         $discount->setStatus(DiscountStatus::Exhausted);
                         $discount->setExhaustedAt((new DateTime())->format('Y-m-d\TH:i:s.000+00:00'));
-                        $this->emit(BillingEvent::DiscountExhausted, $discount);
+                        $this->emit(Event::DiscountExhausted, $discount);
                     }
 
                     $this->adapter->updateDiscount($discount->getId(), $discount->getDocument());
@@ -944,7 +944,7 @@ class Billing
         $doc = $this->adapter->updateInvoice($invoiceId, $invoice->getDocument());
         $invoice = new Invoice($doc);
 
-        $this->emit(BillingEvent::InvoiceFinalized, $invoice);
+        $this->emit(Event::InvoiceFinalized, $invoice);
 
         return $invoice;
     }
@@ -971,7 +971,7 @@ class Billing
         $doc = $this->adapter->updateInvoice($invoiceId, $invoice->getDocument());
         $invoice = new Invoice($doc);
 
-        $this->emit(BillingEvent::InvoicePaid, $invoice);
+        $this->emit(Event::InvoicePaid, $invoice);
 
         return $invoice;
     }
@@ -996,7 +996,7 @@ class Billing
         $doc = $this->adapter->updateInvoice($invoiceId, $invoice->getDocument());
         $invoice = new Invoice($doc);
 
-        $this->emit(BillingEvent::InvoiceFailed, $invoice);
+        $this->emit(Event::InvoiceFailed, $invoice);
 
         return $invoice;
     }
@@ -1022,7 +1022,7 @@ class Billing
         $doc = $this->adapter->updateInvoice($invoiceId, $invoice->getDocument());
         $invoice = new Invoice($doc);
 
-        $this->emit(BillingEvent::InvoiceVoided, $invoice);
+        $this->emit(Event::InvoiceVoided, $invoice);
 
         return $invoice;
     }
@@ -1227,8 +1227,8 @@ class Billing
         $coupon->setTimesRedeemed($coupon->getTimesRedeemed() + 1);
         $this->adapter->updateCoupon($coupon->getId(), $coupon->getDocument());
 
-        $this->emit(BillingEvent::DiscountApplied, $discount);
-        $this->emit(BillingEvent::CouponRedeemed, $coupon);
+        $this->emit(Event::DiscountApplied, $discount);
+        $this->emit(Event::CouponRedeemed, $coupon);
 
         return $discount;
     }
@@ -1285,7 +1285,7 @@ class Billing
         $doc = $this->adapter->updateDiscount($id, $discount->getDocument());
         $discount = new Discount($doc);
 
-        $this->emit(BillingEvent::DiscountCancelled, $discount);
+        $this->emit(Event::DiscountCancelled, $discount);
 
         return $discount;
     }
@@ -1369,7 +1369,7 @@ class Billing
             $wallet->getId(),
         );
 
-        $this->emit(BillingEvent::WalletFunded, $wallet);
+        $this->emit(Event::WalletFunded, $wallet);
 
         return $transaction;
     }
@@ -1407,7 +1407,7 @@ class Billing
             $wallet->getId(),
         );
 
-        $this->emit(BillingEvent::WalletDeducted, $wallet);
+        $this->emit(Event::WalletDeducted, $wallet);
 
         return $transaction;
     }
@@ -1486,7 +1486,7 @@ class Billing
         $doc = $this->adapter->createTransaction(new Document($data));
         $transaction = new Transaction($doc);
 
-        $this->emit(BillingEvent::TransactionCreated, $transaction);
+        $this->emit(Event::TransactionCreated, $transaction);
 
         return $transaction;
     }

@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Utopia\Billing;
 
 /**
- * BillingEvent
+ * Event
  *
  * Backed enum defining all event names for the billing listener system.
  * Follows the same on() pattern as utopia-php/database.
  */
-enum BillingEvent: string
+enum Event: string
 {
     // Subscription events
     case SubscriptionCreated = 'subscription.created';
