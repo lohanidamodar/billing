@@ -21,7 +21,9 @@ class Subscription
      *
      * @param  Document  $document  The underlying database document
      */
-    public function __construct(protected Document $document) {}
+    public function __construct(protected Document $document)
+    {
+    }
 
     /**
      * Get the underlying database document.

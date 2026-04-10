@@ -9,4 +9,6 @@ namespace Utopia\Billing;
  *
  * Base exception class for all billing-related errors.
  */
-class Exception extends \Exception {}
+class Exception extends \Exception
+{
+}

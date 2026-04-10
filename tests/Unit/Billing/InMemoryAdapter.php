@@ -34,7 +34,9 @@ class InMemoryAdapter extends Adapter
 
     private int $invoiceSequence = 0;
 
-    public function setup(): void {}
+    public function setup(): void
+    {
+    }
 
     // --- Subscriptions ---
 
@@ -47,7 +49,7 @@ class InMemoryAdapter extends Adapter
 
     public function getSubscription(string $id): Document
     {
-        return $this->subscriptions[$id] ?? new Document;
+        return $this->subscriptions[$id] ?? new Document();
     }
 
     public function getActiveSubscription(string $entityId): ?Document
@@ -103,7 +105,7 @@ class InMemoryAdapter extends Adapter
 
     public function getInvoice(string $id): Document
     {
-        return $this->invoices[$id] ?? new Document;
+        return $this->invoices[$id] ?? new Document();
     }
 
     public function updateInvoice(string $id, Document $invoice): Document
@@ -157,7 +159,7 @@ class InMemoryAdapter extends Adapter
 
     public function getCoupon(string $id): Document
     {
-        return $this->coupons[$id] ?? new Document;
+        return $this->coupons[$id] ?? new Document();
     }
 
     public function getCouponByCode(string $code): Document
@@ -168,7 +170,7 @@ class InMemoryAdapter extends Adapter
             }
         }
 
-        return new Document;
+        return new Document();
     }
 
     public function updateCoupon(string $id, Document $coupon): Document
@@ -206,7 +208,7 @@ class InMemoryAdapter extends Adapter
 
     public function getDiscount(string $id): Document
     {
-        return $this->discounts[$id] ?? new Document;
+        return $this->discounts[$id] ?? new Document();
     }
 
     public function updateDiscount(string $id, Document $discount): Document
@@ -252,7 +254,7 @@ class InMemoryAdapter extends Adapter
 
     public function getWallet(string $id): Document
     {
-        return $this->wallets[$id] ?? new Document;
+        return $this->wallets[$id] ?? new Document();
     }
 
     public function getWalletByEntity(string $entityId): ?Document
@@ -284,7 +286,7 @@ class InMemoryAdapter extends Adapter
 
     public function getTransaction(string $id): Document
     {
-        return $this->transactions[$id] ?? new Document;
+        return $this->transactions[$id] ?? new Document();
     }
 
     /**

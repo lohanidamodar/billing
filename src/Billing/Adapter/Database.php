@@ -42,7 +42,9 @@ class Database extends Adapter
      *
      * @param  UtopiaDatabase  $db  The utopia-php/database instance
      */
-    public function __construct(protected UtopiaDatabase $db) {}
+    public function __construct(protected UtopiaDatabase $db)
+    {
+    }
 
     /**
      * Set up all billing collections, attributes, and indexes.
@@ -324,7 +326,7 @@ class Database extends Adapter
             ]);
 
             if (empty($results)) {
-                return new Document;
+                return new Document();
             }
 
             return $results[0];

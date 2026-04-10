@@ -54,7 +54,7 @@ class BillingTest extends TestCase
             ]
         );
 
-        $cache = new Cache(new NoCache);
+        $cache = new Cache(new NoCache());
         $adapter = new MariaDB($pdo);
         $database = new Database($adapter, $cache);
         $database->setDatabase($name);
@@ -487,7 +487,7 @@ class BillingTest extends TestCase
 
         $period = $billing->getCurrentPeriod($sub->getId());
         $this->assertGreaterThan(0, $period->getDays());
-        $this->assertTrue($period->contains(new DateTime));
+        $this->assertTrue($period->contains(new DateTime()));
 
         $prorated = $billing->calculateProration($sub->getId(), 'plan-enterprise', 30.0);
         $this->assertGreaterThan(0.0, $prorated);

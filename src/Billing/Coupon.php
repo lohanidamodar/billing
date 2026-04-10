@@ -20,7 +20,9 @@ class Coupon
      *
      * @param  Document  $document  The underlying database document
      */
-    public function __construct(protected Document $document) {}
+    public function __construct(protected Document $document)
+    {
+    }
 
     /**
      * Get the underlying database document.
@@ -300,7 +302,7 @@ class Coupon
         }
 
         $expiresAt = $this->getExpiresAt();
-        if ($expiresAt !== null && new \DateTime($expiresAt) < new \DateTime) {
+        if ($expiresAt !== null && new \DateTime($expiresAt) < new \DateTime()) {
             return false;
         }
 

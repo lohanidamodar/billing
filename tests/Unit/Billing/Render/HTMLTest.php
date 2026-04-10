@@ -13,7 +13,7 @@ class HTMLTest extends TestCase
 {
     public function testHtmlRendererBasic(): void
     {
-        $renderer = new HTML;
+        $renderer = new HTML();
 
         $doc = new Document([
             '$id' => 'inv-render-1',
@@ -50,7 +50,7 @@ class HTMLTest extends TestCase
 
     public function testHtmlRendererWithEntityAndIssuer(): void
     {
-        $renderer = new HTML;
+        $renderer = new HTML();
 
         $doc = new Document([
             '$id' => 'inv-render-2',
@@ -85,7 +85,7 @@ class HTMLTest extends TestCase
 
     public function testHtmlRendererCreditNote(): void
     {
-        $renderer = new HTML;
+        $renderer = new HTML();
 
         $doc = new Document([
             '$id' => 'inv-cn-1',
@@ -118,7 +118,7 @@ class HTMLTest extends TestCase
 
     public function testHtmlRendererTemplateNotFound(): void
     {
-        $renderer = new HTML;
+        $renderer = new HTML();
         $doc = new Document([
             '$id' => 'inv-1',
             'type' => 'subscription',
@@ -135,7 +135,7 @@ class HTMLTest extends TestCase
 
     public function testHtmlRendererAllItemTypes(): void
     {
-        $renderer = new HTML;
+        $renderer = new HTML();
 
         $doc = new Document([
             '$id' => 'inv-all',
@@ -183,7 +183,7 @@ class HTMLTest extends TestCase
     public function testHtmlRendererConstructor(): void
     {
         // Default template
-        $renderer = new HTML;
+        $renderer = new HTML();
         $this->assertInstanceOf(HTML::class, $renderer);
 
         // Custom default template

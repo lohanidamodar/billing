@@ -27,7 +27,7 @@ class BillingTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->billing = new Billing(new InMemoryAdapter);
+        $this->billing = new Billing(new InMemoryAdapter());
         $this->billing->setup();
     }
 
@@ -53,7 +53,7 @@ class BillingTest extends TestCase
 
     public function testCreateSubscriptionWithTrial(): void
     {
-        $trialEnd = (new DateTime)->modify('+14 days');
+        $trialEnd = (new DateTime())->modify('+14 days');
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro', $trialEnd);
 
         $this->assertEquals(SubscriptionStatus::Trialing, $sub->getStatus());
@@ -606,7 +606,7 @@ class BillingTest extends TestCase
         ]);
         $finalized2 = $this->billing->finalizeInvoice($invoice2->getId());
 
-        $year = (new DateTime)->format('Y');
+        $year = (new DateTime())->format('Y');
         $this->assertEquals("INV-{$year}-00001", $finalized1->getNumber());
         $this->assertEquals("INV-{$year}-00002", $finalized2->getNumber());
     }
@@ -949,7 +949,7 @@ class BillingTest extends TestCase
 
         $this->assertInstanceOf(Period::class, $period);
         $this->assertTrue($period->getDays() > 0);
-        $this->assertTrue($period->contains(new DateTime));
+        $this->assertTrue($period->contains(new DateTime()));
     }
 
     public function testCalculateProration(): void
@@ -969,7 +969,7 @@ class BillingTest extends TestCase
 
     public function testExpiredCouponNotRedeemable(): void
     {
-        $past = (new DateTime)->modify('-1 day')->format('Y-m-d\TH:i:s.000+00:00');
+        $past = (new DateTime())->modify('-1 day')->format('Y-m-d\TH:i:s.000+00:00');
         $coupon = $this->billing->createCoupon('EXPIRED', 'percentage', 10.0, 'once', null, [
             'expiresAt' => $past,
         ]);
@@ -992,7 +992,7 @@ class BillingTest extends TestCase
 
     public function testCannotApplyExpiredCoupon(): void
     {
-        $past = (new DateTime)->modify('-1 day')->format('Y-m-d\TH:i:s.000+00:00');
+        $past = (new DateTime())->modify('-1 day')->format('Y-m-d\TH:i:s.000+00:00');
         $this->billing->createCoupon('OLD', 'percentage', 10.0, 'once', null, [
             'expiresAt' => $past,
         ]);
@@ -1053,7 +1053,7 @@ class BillingTest extends TestCase
 
     public function testTrialToActiveOnPaymentSuccess(): void
     {
-        $trialEnd = (new DateTime)->modify('+14 days');
+        $trialEnd = (new DateTime())->modify('+14 days');
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro', $trialEnd);
 
         $this->assertEquals(SubscriptionStatus::Trialing, $sub->getStatus());

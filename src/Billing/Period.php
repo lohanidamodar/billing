@@ -86,7 +86,7 @@ class Period
      */
     public function isExpired(?DateTime $now = null): bool
     {
-        $now = $now ?? new DateTime;
+        $now = $now ?? new DateTime();
 
         return $this->end < $now;
     }

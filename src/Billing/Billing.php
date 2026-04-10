@@ -119,7 +119,7 @@ class Billing
         string $entityType = 'organization',
         array $metadata = [],
     ): Subscription {
-        $now = new DateTime;
+        $now = new DateTime();
         $periodEnd = (clone $now)->modify('+1 month');
 
         $isTrialing = $trialEnd !== null && $trialEnd > $now;
@@ -271,7 +271,7 @@ class Billing
         }
 
         // Advance billing period
-        $now = new DateTime;
+        $now = new DateTime();
         $newEnd = (clone $now)->modify('+1 month');
         $subscription->setCurrentPeriodStart($now->format('Y-m-d\TH:i:s.000+00:00'));
         $subscription->setCurrentPeriodEnd($newEnd->format('Y-m-d\TH:i:s.000+00:00'));
@@ -317,7 +317,7 @@ class Billing
             throw new Exception('Subscription already has a pending plan change');
         }
 
-        $now = new DateTime;
+        $now = new DateTime();
         $expiresAt = $expiresAt ?? (clone $now)->modify('+23 hours');
 
         $subscription->setPendingPlanId($newPlanId);
@@ -435,7 +435,7 @@ class Billing
             throw new Exception('Subscription already has a pending plan change');
         }
 
-        $now = new DateTime;
+        $now = new DateTime();
 
         $subscription->setPendingPlanId($newPlanId);
         $subscription->setPendingChangeType(ChangeType::Downgrade);
@@ -584,7 +584,7 @@ class Billing
     public function recordPaymentFailure(string $subscriptionId): Subscription
     {
         $subscription = $this->getSubscription($subscriptionId);
-        $now = new DateTime;
+        $now = new DateTime();
 
         $subscription->setFailedPaymentAttempts($subscription->getFailedPaymentAttempts() + 1);
         $subscription->setLastFailedAt($now->format('Y-m-d\TH:i:s.000+00:00'));
@@ -874,7 +874,7 @@ class Billing
 
                     if ($newRemaining <= 0) {
                         $discount->setStatus(DiscountStatus::Exhausted);
-                        $discount->setExhaustedAt((new DateTime)->format('Y-m-d\TH:i:s.000+00:00'));
+                        $discount->setExhaustedAt((new DateTime())->format('Y-m-d\TH:i:s.000+00:00'));
                         $this->emit('discount.exhausted', $discount);
                     }
 
@@ -956,7 +956,7 @@ class Billing
         }
 
         $invoice->setStatus(InvoiceStatus::Paid);
-        $invoice->setPaidAt((new DateTime)->format('Y-m-d\TH:i:s.000+00:00'));
+        $invoice->setPaidAt((new DateTime())->format('Y-m-d\TH:i:s.000+00:00'));
 
         $doc = $this->adapter->updateInvoice($invoiceId, $invoice->getDocument());
         $invoice = new Invoice($doc);
@@ -1178,7 +1178,7 @@ class Billing
             throw new Exception('Coupon is not redeemable');
         }
 
-        $now = new DateTime;
+        $now = new DateTime();
 
         // Determine cycles
         $cyclesTotal = null;
@@ -1270,7 +1270,7 @@ class Billing
         }
 
         $discount->setStatus(DiscountStatus::Cancelled);
-        $discount->setCancelledAt((new DateTime)->format('Y-m-d\TH:i:s.000+00:00'));
+        $discount->setCancelledAt((new DateTime())->format('Y-m-d\TH:i:s.000+00:00'));
 
         $doc = $this->adapter->updateDiscount($id, $discount->getDocument());
         $discount = new Discount($doc);
@@ -1566,7 +1566,7 @@ class Billing
             return $newPrice;
         }
 
-        $now = new DateTime;
+        $now = new DateTime();
         $daysRemaining = (int) $now->diff($period->getEnd())->days;
 
         return Credit::calculateProration($newPrice, $daysRemaining, $totalDays);
@@ -1616,7 +1616,7 @@ class Billing
     {
         /** @var string $format */
         $format = $this->options['invoiceNumberFormat'];
-        $year = (new DateTime)->format('Y');
+        $year = (new DateTime())->format('Y');
 
         $number = \str_replace('{year}', $year, $format);
         $number = \str_replace('{sequence}', \str_pad((string) $sequence, 5, '0', \STR_PAD_LEFT), $number);
