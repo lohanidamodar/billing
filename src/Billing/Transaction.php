@@ -179,19 +179,19 @@ class Transaction
     }
 
     /**
-     * Get the client secret (for 3DS/SCA frontend confirmation).
+     * Get the auth code (for later payment verification).
      */
-    public function getClientSecret(): ?string
+    public function getAuthCode(): ?string
     {
-        return $this->document->getAttribute('clientSecret');
+        return $this->document->getAttribute('authCode');
     }
 
     /**
-     * Set the client secret.
+     * Set the auth code.
      */
-    public function setClientSecret(?string $clientSecret): self
+    public function setAuthCode(?string $authCode): self
     {
-        $this->document->setAttribute('clientSecret', $clientSecret);
+        $this->document->setAttribute('authCode', $authCode);
 
         return $this;
     }

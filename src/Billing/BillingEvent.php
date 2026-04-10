@@ -45,7 +45,6 @@ enum BillingEvent: string
 
     // Payment events
     case PaymentFailed = 'payment.failed';
-    case PaymentRequiresAction = 'payment.requires_action';
 
     // Transaction events
     case TransactionCreated = 'transaction.created';

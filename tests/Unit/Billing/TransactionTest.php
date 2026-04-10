@@ -92,6 +92,9 @@ class TransactionTest extends TestCase
         $tx->setProviderPaymentId('pi_stripe_123');
         $this->assertEquals('pi_stripe_123', $tx->getProviderPaymentId());
 
+        $tx->setAuthCode('auth_abc_123');
+        $this->assertEquals('auth_abc_123', $tx->getAuthCode());
+
         $tx->setDescription('Test charge');
         $this->assertEquals('Test charge', $tx->getDescription());
 

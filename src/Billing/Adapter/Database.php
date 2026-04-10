@@ -828,7 +828,7 @@ class Database extends Adapter
         $db->createAttribute(self::COLLECTION_TRANSACTIONS, 'status', UtopiaDatabase::VAR_STRING, 50, true);
         $db->createAttribute(self::COLLECTION_TRANSACTIONS, 'walletId', UtopiaDatabase::VAR_STRING, 255, false);
         $db->createAttribute(self::COLLECTION_TRANSACTIONS, 'providerPaymentId', UtopiaDatabase::VAR_STRING, 255, false);
-        $db->createAttribute(self::COLLECTION_TRANSACTIONS, 'clientSecret', UtopiaDatabase::VAR_STRING, 255, false);
+        $db->createAttribute(self::COLLECTION_TRANSACTIONS, 'authCode', UtopiaDatabase::VAR_STRING, 255, false);
         $db->createAttribute(self::COLLECTION_TRANSACTIONS, 'description', UtopiaDatabase::VAR_STRING, 2000, true);
         $db->createAttribute(self::COLLECTION_TRANSACTIONS, 'metadata', UtopiaDatabase::VAR_STRING, 65535, false);
 

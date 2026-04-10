@@ -37,11 +37,9 @@
     "require-dev": {
         "phpunit/phpunit": "9.*",
         "phpstan/phpstan": "1.*",
-        "laravel/pint": "1.*",
-        "utopia-php/pay": "0.*"
+        "laravel/pint": "1.*"
     },
     "suggest": {
-        "utopia-php/pay": "Required for Payment\\Pay adapter (Stripe gateway)",
         "mpdf/mpdf": "Required for PDF invoice rendering"
     }
 }
