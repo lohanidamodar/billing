@@ -10,7 +10,7 @@ use Utopia\Billing\Exception;
 
 class CreditTest extends TestCase
 {
-    public function test_credit_calculations(): void
+    public function testCreditCalculations(): void
     {
         // Percentage discount
         $this->assertEquals(90.0, Credit::applyPercentageDiscount(100.0, 10.0));
@@ -39,71 +39,71 @@ class CreditTest extends TestCase
         $this->assertEquals(20.0, Credit::calculateProrationCredit(30.0, 20, 30));
     }
 
-    public function test_credit_invalid_percentage(): void
+    public function testCreditInvalidPercentage(): void
     {
         $this->expectException(Exception::class);
         Credit::applyPercentageDiscount(100.0, 101.0);
     }
 
-    public function test_credit_invalid_fixed_discount(): void
+    public function testCreditInvalidFixedDiscount(): void
     {
         $this->expectException(Exception::class);
         Credit::applyFixedDiscount(100.0, -5.0);
     }
 
-    public function test_credit_invalid_tax_rate(): void
+    public function testCreditInvalidTaxRate(): void
     {
         $this->expectException(Exception::class);
         Credit::calculateTax(100.0, -1.0);
     }
 
-    public function test_credit_invalid_proration(): void
+    public function testCreditInvalidProration(): void
     {
         $this->expectException(Exception::class);
         Credit::calculateProration(30.0, 10, 0);
     }
 
-    public function test_credit_zero_percent_discount(): void
+    public function testCreditZeroPercentDiscount(): void
     {
         $this->assertEquals(100.0, Credit::applyPercentageDiscount(100.0, 0.0));
     }
 
-    public function test_credit_negative_percentage(): void
+    public function testCreditNegativePercentage(): void
     {
         $this->expectException(Exception::class);
         Credit::applyPercentageDiscount(100.0, -1.0);
     }
 
-    public function test_credit_proration_zero_days(): void
+    public function testCreditProrationZeroDays(): void
     {
         $this->assertEquals(0.0, Credit::calculateProration(30.0, 0, 30));
     }
 
-    public function test_credit_proration_negative_days(): void
+    public function testCreditProrationNegativeDays(): void
     {
         $this->expectException(Exception::class);
         Credit::calculateProration(30.0, -1, 30);
     }
 
-    public function test_credit_proration_credit_negative_days(): void
+    public function testCreditProrationCreditNegativeDays(): void
     {
         $this->expectException(Exception::class);
         Credit::calculateProrationCredit(30.0, -1, 30);
     }
 
-    public function test_credit_proration_credit_zero_total(): void
+    public function testCreditProrationCreditZeroTotal(): void
     {
         $this->expectException(Exception::class);
         Credit::calculateProrationCredit(30.0, 10, 0);
     }
 
-    public function test_credit_total_with_tax_negative_rate(): void
+    public function testCreditTotalWithTaxNegativeRate(): void
     {
         $this->expectException(Exception::class);
         Credit::calculateTotalWithTax(100.0, -5.0);
     }
 
-    public function test_credit_percentage_discount_amount_invalid(): void
+    public function testCreditPercentageDiscountAmountInvalid(): void
     {
         $this->expectException(Exception::class);
         Credit::calculatePercentageDiscountAmount(100.0, 150.0);

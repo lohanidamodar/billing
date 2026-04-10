@@ -12,7 +12,7 @@ use Utopia\Database\Document;
 
 class TransactionTest extends TestCase
 {
-    public function test_transaction_model(): void
+    public function testTransactionModel(): void
     {
         $doc = new Document([
             '$id' => 'tx-1',
@@ -35,7 +35,7 @@ class TransactionTest extends TestCase
         $this->assertEquals('transactions', Transaction::getName());
     }
 
-    public function test_transaction_all_types_classification(): void
+    public function testTransactionAllTypesClassification(): void
     {
         $doc = new Document(['$id' => 'tx-test', 'metadata' => []]);
         $tx = new Transaction($doc);
@@ -49,7 +49,7 @@ class TransactionTest extends TestCase
         }
     }
 
-    public function test_transaction_all_statuses(): void
+    public function testTransactionAllStatuses(): void
     {
         $doc = new Document(['$id' => 'tx-test', 'metadata' => []]);
         $tx = new Transaction($doc);
@@ -66,7 +66,7 @@ class TransactionTest extends TestCase
         $this->assertTrue($tx->isFailed());
     }
 
-    public function test_transaction_all_setters_getters(): void
+    public function testTransactionAllSettersGetters(): void
     {
         $doc = new Document(['$id' => 'tx-cov', 'metadata' => '{}']);
         $tx = new Transaction($doc);

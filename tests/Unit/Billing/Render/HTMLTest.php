@@ -11,7 +11,7 @@ use Utopia\Database\Document;
 
 class HTMLTest extends TestCase
 {
-    public function test_html_renderer_basic(): void
+    public function testHtmlRendererBasic(): void
     {
         $renderer = new HTML;
 
@@ -48,7 +48,7 @@ class HTMLTest extends TestCase
         $this->assertStringContainsString('<!DOCTYPE html>', $html);
     }
 
-    public function test_html_renderer_with_entity_and_issuer(): void
+    public function testHtmlRendererWithEntityAndIssuer(): void
     {
         $renderer = new HTML;
 
@@ -83,7 +83,7 @@ class HTMLTest extends TestCase
         $this->assertStringContainsString('US-12345', $html);
     }
 
-    public function test_html_renderer_credit_note(): void
+    public function testHtmlRendererCreditNote(): void
     {
         $renderer = new HTML;
 
@@ -116,7 +116,7 @@ class HTMLTest extends TestCase
         $this->assertStringContainsString('inv-original', $html);
     }
 
-    public function test_html_renderer_template_not_found(): void
+    public function testHtmlRendererTemplateNotFound(): void
     {
         $renderer = new HTML;
         $doc = new Document([
@@ -133,7 +133,7 @@ class HTMLTest extends TestCase
         $renderer->render($invoice, ['template' => '/nonexistent/template.phtml']);
     }
 
-    public function test_html_renderer_all_item_types(): void
+    public function testHtmlRendererAllItemTypes(): void
     {
         $renderer = new HTML;
 
@@ -180,7 +180,7 @@ class HTMLTest extends TestCase
         $this->assertStringContainsString('Gateway Charged', $html);
     }
 
-    public function test_html_renderer_constructor(): void
+    public function testHtmlRendererConstructor(): void
     {
         // Default template
         $renderer = new HTML;

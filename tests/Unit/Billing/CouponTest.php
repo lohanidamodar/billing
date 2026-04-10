@@ -12,7 +12,7 @@ use Utopia\Database\Document;
 
 class CouponTest extends TestCase
 {
-    public function test_coupon_model(): void
+    public function testCouponModel(): void
     {
         $doc = new Document([
             '$id' => 'cpn-1',
@@ -34,7 +34,7 @@ class CouponTest extends TestCase
         $this->assertEquals('coupons', Coupon::getName());
     }
 
-    public function test_coupon_all_setters_getters(): void
+    public function testCouponAllSettersGetters(): void
     {
         $doc = new Document(['$id' => 'cpn-cov', 'metadata' => '{}']);
         $cpn = new Coupon($doc);

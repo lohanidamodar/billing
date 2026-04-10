@@ -93,7 +93,7 @@ class BillingTest extends TestCase
     // Setup
     // =========================================================================
 
-    public function test_setup(): void
+    public function testSetup(): void
     {
         self::billing()->setup();
 
@@ -108,9 +108,9 @@ class BillingTest extends TestCase
     // =========================================================================
 
     /**
-     * @depends test_setup
+     * @depends testSetup
      */
-    public function test_subscription_lifecycle(): void
+    public function testSubscriptionLifecycle(): void
     {
         $billing = self::billing();
 
@@ -167,9 +167,9 @@ class BillingTest extends TestCase
     // =========================================================================
 
     /**
-     * @depends test_setup
+     * @depends testSetup
      */
-    public function test_invoice_finalization(): void
+    public function testInvoiceFinalization(): void
     {
         $billing = self::billing();
 
@@ -262,9 +262,9 @@ class BillingTest extends TestCase
     // =========================================================================
 
     /**
-     * @depends test_setup
+     * @depends testSetup
      */
-    public function test_wallet_transactions(): void
+    public function testWalletTransactions(): void
     {
         $billing = self::billing();
 
@@ -324,9 +324,9 @@ class BillingTest extends TestCase
     // =========================================================================
 
     /**
-     * @depends test_setup
+     * @depends testSetup
      */
-    public function test_dunning_budget(): void
+    public function testDunningBudget(): void
     {
         $billing = self::billing();
 
@@ -376,9 +376,9 @@ class BillingTest extends TestCase
     // =========================================================================
 
     /**
-     * @depends test_setup
+     * @depends testSetup
      */
-    public function test_coupon_lifecycle(): void
+    public function testCouponLifecycle(): void
     {
         $billing = self::billing();
 
@@ -423,9 +423,9 @@ class BillingTest extends TestCase
     // =========================================================================
 
     /**
-     * @depends test_setup
+     * @depends testSetup
      */
-    public function test_discount_cancel(): void
+    public function testDiscountCancel(): void
     {
         $billing = self::billing();
 
@@ -449,9 +449,9 @@ class BillingTest extends TestCase
     // =========================================================================
 
     /**
-     * @depends test_setup
+     * @depends testSetup
      */
-    public function test_invoice_void(): void
+    public function testInvoiceVoid(): void
     {
         $billing = self::billing();
 
@@ -477,9 +477,9 @@ class BillingTest extends TestCase
     // =========================================================================
 
     /**
-     * @depends test_setup
+     * @depends testSetup
      */
-    public function test_period_proration(): void
+    public function testPeriodProration(): void
     {
         $billing = self::billing();
 
@@ -499,9 +499,9 @@ class BillingTest extends TestCase
     // =========================================================================
 
     /**
-     * @depends test_setup
+     * @depends testSetup
      */
-    public function test_events(): void
+    public function testEvents(): void
     {
         $billing = self::billing();
         $events = [];

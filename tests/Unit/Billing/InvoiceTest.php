@@ -11,7 +11,7 @@ use Utopia\Database\Document;
 
 class InvoiceTest extends TestCase
 {
-    public function test_invoice_model(): void
+    public function testInvoiceModel(): void
     {
         $doc = new Document([
             '$id' => 'inv-1',
@@ -40,7 +40,7 @@ class InvoiceTest extends TestCase
         $this->assertEquals('invoices', Invoice::getName());
     }
 
-    public function test_invoice_all_statuses_finalized(): void
+    public function testInvoiceAllStatusesFinalized(): void
     {
         $doc = new Document(['$id' => 'inv-test', 'items' => [], 'metadata' => []]);
         $inv = new Invoice($doc);
@@ -52,7 +52,7 @@ class InvoiceTest extends TestCase
         }
     }
 
-    public function test_invoice_all_setters_getters(): void
+    public function testInvoiceAllSettersGetters(): void
     {
         $doc = new Document(['$id' => 'inv-cov', 'items' => '[]', 'metadata' => '{}']);
         $inv = new Invoice($doc);

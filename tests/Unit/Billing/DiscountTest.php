@@ -13,7 +13,7 @@ use Utopia\Database\Document;
 
 class DiscountTest extends TestCase
 {
-    public function test_discount_model(): void
+    public function testDiscountModel(): void
     {
         $doc = new Document([
             '$id' => 'disc-1',
@@ -39,7 +39,7 @@ class DiscountTest extends TestCase
         $this->assertEquals('discounts', Discount::getName());
     }
 
-    public function test_discount_model_with_scope(): void
+    public function testDiscountModelWithScope(): void
     {
         $doc = new Document([
             '$id' => 'disc-2',
@@ -62,7 +62,7 @@ class DiscountTest extends TestCase
         $this->assertEquals(['bandwidth', 'storage'], $discount->getScopeResources());
     }
 
-    public function test_discount_is_fixed(): void
+    public function testDiscountIsFixed(): void
     {
         $doc = new Document(['$id' => 'disc-fixed', 'type' => 'fixed', 'metadata' => '{}']);
         $disc = new Discount($doc);
@@ -71,7 +71,7 @@ class DiscountTest extends TestCase
         $this->assertFalse($disc->isPercentage());
     }
 
-    public function test_discount_all_setters_getters(): void
+    public function testDiscountAllSettersGetters(): void
     {
         $doc = new Document(['$id' => 'disc-cov', 'metadata' => '{}']);
         $disc = new Discount($doc);

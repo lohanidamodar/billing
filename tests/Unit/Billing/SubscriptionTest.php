@@ -12,7 +12,7 @@ use Utopia\Database\Document;
 
 class SubscriptionTest extends TestCase
 {
-    public function test_subscription_model(): void
+    public function testSubscriptionModel(): void
     {
         $doc = new Document([
             '$id' => 'sub-1',
@@ -38,7 +38,7 @@ class SubscriptionTest extends TestCase
         $this->assertEquals('subscriptions', Subscription::getName());
     }
 
-    public function test_subscription_all_statuses_accessible_and_terminal(): void
+    public function testSubscriptionAllStatusesAccessibleAndTerminal(): void
     {
         $doc = new Document(['$id' => 'sub-test', 'metadata' => []]);
         $sub = new Subscription($doc);
@@ -52,7 +52,7 @@ class SubscriptionTest extends TestCase
         }
     }
 
-    public function test_subscription_all_setters_getters(): void
+    public function testSubscriptionAllSettersGetters(): void
     {
         $doc = new Document(['$id' => 'sub-cov', 'metadata' => '{}']);
         $sub = new Subscription($doc);

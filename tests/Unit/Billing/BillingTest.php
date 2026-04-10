@@ -35,7 +35,7 @@ class BillingTest extends TestCase
     // Subscriptions
     // =========================================================================
 
-    public function test_create_subscription(): void
+    public function testCreateSubscription(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
 
@@ -51,7 +51,7 @@ class BillingTest extends TestCase
         $this->assertEquals(0.0, $sub->getBudgetUsed());
     }
 
-    public function test_create_subscription_with_trial(): void
+    public function testCreateSubscriptionWithTrial(): void
     {
         $trialEnd = (new DateTime)->modify('+14 days');
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro', $trialEnd);
@@ -62,7 +62,7 @@ class BillingTest extends TestCase
         $this->assertTrue($sub->isAccessible());
     }
 
-    public function test_get_subscription(): void
+    public function testGetSubscription(): void
     {
         $created = $this->billing->createSubscription('entity-1', 'plan-pro');
         $fetched = $this->billing->getSubscription($created->getId());
@@ -71,7 +71,7 @@ class BillingTest extends TestCase
         $this->assertEquals('plan-pro', $fetched->getPlanId());
     }
 
-    public function test_get_subscription_not_found(): void
+    public function testGetSubscriptionNotFound(): void
     {
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('Subscription not found');
@@ -79,7 +79,7 @@ class BillingTest extends TestCase
         $this->billing->getSubscription('nonexistent-id');
     }
 
-    public function test_get_active_subscription(): void
+    public function testGetActiveSubscription(): void
     {
         // No subscription yet
         $this->assertNull($this->billing->getActiveSubscription('entity-1'));
@@ -93,7 +93,7 @@ class BillingTest extends TestCase
         $this->assertEquals($sub->getId(), $active->getId());
     }
 
-    public function test_cancel_subscription_at_period_end(): void
+    public function testCancelSubscriptionAtPeriodEnd(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->recordPaymentSuccess($sub->getId());
@@ -105,7 +105,7 @@ class BillingTest extends TestCase
         $this->assertTrue($cancelled->isAccessible());
     }
 
-    public function test_cancel_subscription_immediately(): void
+    public function testCancelSubscriptionImmediately(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->recordPaymentSuccess($sub->getId());
@@ -117,7 +117,7 @@ class BillingTest extends TestCase
         $this->assertTrue($cancelled->isTerminal());
     }
 
-    public function test_cannot_cancel_terminated_subscription(): void
+    public function testCannotCancelTerminatedSubscription(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->cancelSubscription($sub->getId(), false);
@@ -126,7 +126,7 @@ class BillingTest extends TestCase
         $this->billing->cancelSubscription($sub->getId(), false);
     }
 
-    public function test_renew_subscription(): void
+    public function testRenewSubscription(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->recordPaymentSuccess($sub->getId());
@@ -140,7 +140,7 @@ class BillingTest extends TestCase
         $this->assertFalse($renewed->getBudgetLimitReached());
     }
 
-    public function test_renew_canceling_subscription(): void
+    public function testRenewCancelingSubscription(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->recordPaymentSuccess($sub->getId());
@@ -156,7 +156,7 @@ class BillingTest extends TestCase
     // Upgrades & Downgrades
     // =========================================================================
 
-    public function test_request_upgrade(): void
+    public function testRequestUpgrade(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-basic');
         $this->billing->recordPaymentSuccess($sub->getId());
@@ -171,7 +171,7 @@ class BillingTest extends TestCase
         $this->assertTrue($upgraded->hasPendingChange());
     }
 
-    public function test_finalize_upgrade(): void
+    public function testFinalizeUpgrade(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-basic');
         $this->billing->recordPaymentSuccess($sub->getId());
@@ -185,7 +185,7 @@ class BillingTest extends TestCase
         $this->assertFalse($finalized->hasPendingChange());
     }
 
-    public function test_cancel_upgrade(): void
+    public function testCancelUpgrade(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-basic');
         $this->billing->recordPaymentSuccess($sub->getId());
@@ -198,7 +198,7 @@ class BillingTest extends TestCase
         $this->assertFalse($cancelled->hasPendingChange());
     }
 
-    public function test_cannot_upgrade_with_pending_change(): void
+    public function testCannotUpgradeWithPendingChange(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-basic');
         $this->billing->recordPaymentSuccess($sub->getId());
@@ -209,7 +209,7 @@ class BillingTest extends TestCase
         $this->billing->requestUpgrade($sub->getId(), 'plan-enterprise');
     }
 
-    public function test_request_downgrade(): void
+    public function testRequestDowngrade(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->recordPaymentSuccess($sub->getId());
@@ -221,7 +221,7 @@ class BillingTest extends TestCase
         $this->assertEquals(ChangeType::Downgrade, $downgraded->getPendingChangeType());
     }
 
-    public function test_apply_pending_downgrade(): void
+    public function testApplyPendingDowngrade(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->recordPaymentSuccess($sub->getId());
@@ -233,7 +233,7 @@ class BillingTest extends TestCase
         $this->assertNull($applied->getPendingPlanId());
     }
 
-    public function test_cancel_downgrade(): void
+    public function testCancelDowngrade(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->recordPaymentSuccess($sub->getId());
@@ -245,7 +245,7 @@ class BillingTest extends TestCase
         $this->assertNull($cancelled->getPendingPlanId());
     }
 
-    public function test_renew_applies_pending_downgrade(): void
+    public function testRenewAppliesPendingDowngrade(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->recordPaymentSuccess($sub->getId());
@@ -261,7 +261,7 @@ class BillingTest extends TestCase
     // Budget
     // =========================================================================
 
-    public function test_set_budget(): void
+    public function testSetBudget(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
 
@@ -271,7 +271,7 @@ class BillingTest extends TestCase
         $this->assertFalse($updated->getBudgetLimitReached());
     }
 
-    public function test_update_budget_used(): void
+    public function testUpdateBudgetUsed(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->setBudget($sub->getId(), 100.0);
@@ -284,7 +284,7 @@ class BillingTest extends TestCase
         $this->assertTrue($reached->getBudgetLimitReached());
     }
 
-    public function test_budget_reached_event(): void
+    public function testBudgetReachedEvent(): void
     {
         $eventFired = false;
         $this->billing->on('subscription.budget_reached', function () use (&$eventFired) {
@@ -302,7 +302,7 @@ class BillingTest extends TestCase
     // Dunning
     // =========================================================================
 
-    public function test_record_payment_failure(): void
+    public function testRecordPaymentFailure(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->recordPaymentSuccess($sub->getId());
@@ -314,7 +314,7 @@ class BillingTest extends TestCase
         $this->assertNotNull($failed->getLastFailedAt());
     }
 
-    public function test_record_payment_success(): void
+    public function testRecordPaymentSuccess(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
 
@@ -325,7 +325,7 @@ class BillingTest extends TestCase
         $this->assertNull($success->getLastFailedAt());
     }
 
-    public function test_suspend_subscription(): void
+    public function testSuspendSubscription(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->recordPaymentSuccess($sub->getId());
@@ -343,7 +343,7 @@ class BillingTest extends TestCase
     // Invoices
     // =========================================================================
 
-    public function test_create_invoice(): void
+    public function testCreateInvoice(): void
     {
         $invoice = $this->billing->createInvoice('entity-1', 'subscription');
 
@@ -355,7 +355,7 @@ class BillingTest extends TestCase
         $this->assertEquals(0.0, $invoice->getTotal());
     }
 
-    public function test_create_invoice_with_items(): void
+    public function testCreateInvoiceWithItems(): void
     {
         $items = [
             ['type' => 'plan', 'description' => 'Pro Plan', 'amount' => 15.00],
@@ -367,7 +367,7 @@ class BillingTest extends TestCase
         $this->assertCount(2, $invoice->getItems());
     }
 
-    public function test_add_invoice_item(): void
+    public function testAddInvoiceItem(): void
     {
         $invoice = $this->billing->createInvoice('entity-1', 'subscription');
 
@@ -380,7 +380,7 @@ class BillingTest extends TestCase
         $this->assertCount(1, $updated->getItems());
     }
 
-    public function test_cannot_add_item_to_finalized_invoice(): void
+    public function testCannotAddItemToFinalizedInvoice(): void
     {
         $invoice = $this->billing->createInvoice('entity-1', 'subscription', null, [
             ['type' => 'plan', 'description' => 'Pro Plan', 'amount' => 15.00],
@@ -395,7 +395,7 @@ class BillingTest extends TestCase
         ]);
     }
 
-    public function test_finalize_invoice(): void
+    public function testFinalizeInvoice(): void
     {
         $invoice = $this->billing->createInvoice('entity-1', 'subscription', null, [
             ['type' => 'plan', 'description' => 'Pro Plan', 'amount' => 15.00],
@@ -413,7 +413,7 @@ class BillingTest extends TestCase
         $this->assertTrue($finalized->isFinalized());
     }
 
-    public function test_finalize_invoice_with_tax(): void
+    public function testFinalizeInvoiceWithTax(): void
     {
         $invoice = $this->billing->createInvoice('entity-1', 'subscription', null, [
             ['type' => 'plan', 'description' => 'Pro Plan', 'amount' => 100.00],
@@ -435,7 +435,7 @@ class BillingTest extends TestCase
         $this->assertStringContainsString('17.0%', (string) $taxItems[0]['description']);
     }
 
-    public function test_finalize_invoice_with_discounts(): void
+    public function testFinalizeInvoiceWithDiscounts(): void
     {
         // Create subscription and apply a percentage discount
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
@@ -459,7 +459,7 @@ class BillingTest extends TestCase
         $this->assertEquals(-10.0, $discountItems[0]['amount']);
     }
 
-    public function test_finalize_invoice_with_line_level_discount(): void
+    public function testFinalizeInvoiceWithLineLevelDiscount(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->recordPaymentSuccess($sub->getId());
@@ -482,7 +482,7 @@ class BillingTest extends TestCase
         $this->assertEquals(20.0, $finalized->getTotal());
     }
 
-    public function test_finalize_invoice_with_discount_and_tax(): void
+    public function testFinalizeInvoiceWithDiscountAndTax(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->recordPaymentSuccess($sub->getId());
@@ -505,7 +505,7 @@ class BillingTest extends TestCase
         $this->assertEquals(99.0, $finalized->getTotal()); // 100 - 10 + 9
     }
 
-    public function test_cannot_finalize_twice(): void
+    public function testCannotFinalizeTwice(): void
     {
         $invoice = $this->billing->createInvoice('entity-1', 'subscription', null, [
             ['type' => 'plan', 'description' => 'Pro Plan', 'amount' => 15.00],
@@ -516,7 +516,7 @@ class BillingTest extends TestCase
         $this->billing->finalizeInvoice($invoice->getId());
     }
 
-    public function test_mark_invoice_paid(): void
+    public function testMarkInvoicePaid(): void
     {
         $invoice = $this->billing->createInvoice('entity-1', 'subscription', null, [
             ['type' => 'plan', 'description' => 'Pro Plan', 'amount' => 15.00],
@@ -529,7 +529,7 @@ class BillingTest extends TestCase
         $this->assertNotNull($paid->getPaidAt());
     }
 
-    public function test_mark_invoice_failed(): void
+    public function testMarkInvoiceFailed(): void
     {
         $invoice = $this->billing->createInvoice('entity-1', 'subscription', null, [
             ['type' => 'plan', 'description' => 'Pro Plan', 'amount' => 15.00],
@@ -541,7 +541,7 @@ class BillingTest extends TestCase
         $this->assertEquals(InvoiceStatus::Failed, $failed->getStatus());
     }
 
-    public function test_void_invoice(): void
+    public function testVoidInvoice(): void
     {
         $invoice = $this->billing->createInvoice('entity-1', 'subscription', null, [
             ['type' => 'plan', 'description' => 'Pro Plan', 'amount' => 15.00],
@@ -553,7 +553,7 @@ class BillingTest extends TestCase
         $this->assertEquals(InvoiceStatus::Voided, $voided->getStatus());
     }
 
-    public function test_cannot_void_paid_invoice(): void
+    public function testCannotVoidPaidInvoice(): void
     {
         $invoice = $this->billing->createInvoice('entity-1', 'subscription', null, [
             ['type' => 'plan', 'description' => 'Pro Plan', 'amount' => 15.00],
@@ -565,7 +565,7 @@ class BillingTest extends TestCase
         $this->billing->voidInvoice($invoice->getId());
     }
 
-    public function test_list_invoices(): void
+    public function testListInvoices(): void
     {
         $this->billing->createInvoice('entity-1', 'subscription');
         $this->billing->createInvoice('entity-1', 'wallet_topup');
@@ -576,7 +576,7 @@ class BillingTest extends TestCase
         $this->assertInstanceOf(Invoice::class, $invoices[0]);
     }
 
-    public function test_create_credit_note(): void
+    public function testCreateCreditNote(): void
     {
         $invoice = $this->billing->createInvoice('entity-1', 'subscription', null, [
             ['type' => 'plan', 'description' => 'Pro Plan', 'amount' => 15.00],
@@ -594,7 +594,7 @@ class BillingTest extends TestCase
         $this->assertEquals('entity-1', $creditNote->getEntityId());
     }
 
-    public function test_invoice_number_generation(): void
+    public function testInvoiceNumberGeneration(): void
     {
         $invoice1 = $this->billing->createInvoice('entity-1', 'subscription', null, [
             ['type' => 'plan', 'description' => 'Plan A', 'amount' => 10.00],
@@ -615,7 +615,7 @@ class BillingTest extends TestCase
     // Coupons
     // =========================================================================
 
-    public function test_create_coupon(): void
+    public function testCreateCoupon(): void
     {
         $coupon = $this->billing->createCoupon('SUMMER20', 'percentage', 20.0, 'once');
 
@@ -629,7 +629,7 @@ class BillingTest extends TestCase
         $this->assertEquals(0, $coupon->getTimesRedeemed());
     }
 
-    public function test_create_fixed_coupon(): void
+    public function testCreateFixedCoupon(): void
     {
         $coupon = $this->billing->createCoupon('FLAT50', 'fixed', 50.0, 'once', null, [
             'currency' => 'USD',
@@ -642,7 +642,7 @@ class BillingTest extends TestCase
         $this->assertEquals(100, $coupon->getMaxRedemptions());
     }
 
-    public function test_get_coupon(): void
+    public function testGetCoupon(): void
     {
         $this->billing->createCoupon('TEST10', 'percentage', 10.0, 'once');
 
@@ -650,13 +650,13 @@ class BillingTest extends TestCase
         $this->assertEquals('TEST10', $fetched->getCode());
     }
 
-    public function test_get_coupon_not_found(): void
+    public function testGetCouponNotFound(): void
     {
         $this->expectException(Exception::class);
         $this->billing->getCoupon('NONEXISTENT');
     }
 
-    public function test_deactivate_coupon(): void
+    public function testDeactivateCoupon(): void
     {
         $this->billing->createCoupon('DEACTIVATE', 'percentage', 10.0, 'once');
 
@@ -670,7 +670,7 @@ class BillingTest extends TestCase
     // Discounts
     // =========================================================================
 
-    public function test_apply_discount(): void
+    public function testApplyDiscount(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->createCoupon('DISC10', 'percentage', 10.0, 'repeating', 3);
@@ -689,7 +689,7 @@ class BillingTest extends TestCase
         $this->assertTrue($discount->isActive());
     }
 
-    public function test_apply_discount_increments_coupon_redemptions(): void
+    public function testApplyDiscountIncrementsCouponRedemptions(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->createCoupon('REDEEM', 'percentage', 10.0, 'once');
@@ -700,7 +700,7 @@ class BillingTest extends TestCase
         $this->assertEquals(1, $coupon->getTimesRedeemed());
     }
 
-    public function test_cannot_apply_deactivated_coupon(): void
+    public function testCannotApplyDeactivatedCoupon(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->createCoupon('DEAD', 'percentage', 10.0, 'once');
@@ -711,7 +711,7 @@ class BillingTest extends TestCase
         $this->billing->applyDiscount('DEAD', $sub->getId(), 'entity-1');
     }
 
-    public function test_list_active_discounts(): void
+    public function testListActiveDiscounts(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->createCoupon('A', 'percentage', 5.0, 'forever');
@@ -725,7 +725,7 @@ class BillingTest extends TestCase
         $this->assertInstanceOf(Discount::class, $discounts[0]);
     }
 
-    public function test_cancel_discount(): void
+    public function testCancelDiscount(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->createCoupon('CANCEL', 'percentage', 10.0, 'forever');
@@ -738,7 +738,7 @@ class BillingTest extends TestCase
         $this->assertNotNull($cancelled->getCancelledAt());
     }
 
-    public function test_discount_exhaustion(): void
+    public function testDiscountExhaustion(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->recordPaymentSuccess($sub->getId());
@@ -760,7 +760,7 @@ class BillingTest extends TestCase
     // Wallet
     // =========================================================================
 
-    public function test_get_or_create_wallet(): void
+    public function testGetOrCreateWallet(): void
     {
         $wallet = $this->billing->getOrCreateWallet('entity-1');
 
@@ -774,7 +774,7 @@ class BillingTest extends TestCase
         $this->assertEquals($wallet->getId(), $same->getId());
     }
 
-    public function test_get_wallet_balance(): void
+    public function testGetWalletBalance(): void
     {
         $this->assertEquals(0.0, $this->billing->getWalletBalance('entity-1'));
 
@@ -784,7 +784,7 @@ class BillingTest extends TestCase
         $this->assertEquals(50.0, $this->billing->getWalletBalance('entity-1'));
     }
 
-    public function test_add_funds(): void
+    public function testAddFunds(): void
     {
         $invoice = $this->billing->createInvoice('entity-1', 'wallet_topup');
         $transaction = $this->billing->addFunds('entity-1', $invoice->getId(), 100.0);
@@ -797,7 +797,7 @@ class BillingTest extends TestCase
         $this->assertEquals(100.0, $this->billing->getWalletBalance('entity-1'));
     }
 
-    public function test_add_funds_rejects_non_positive(): void
+    public function testAddFundsRejectsNonPositive(): void
     {
         $invoice = $this->billing->createInvoice('entity-1', 'wallet_topup');
 
@@ -805,7 +805,7 @@ class BillingTest extends TestCase
         $this->billing->addFunds('entity-1', $invoice->getId(), 0.0);
     }
 
-    public function test_deduct_funds(): void
+    public function testDeductFunds(): void
     {
         $topupInvoice = $this->billing->createInvoice('entity-1', 'wallet_topup');
         $this->billing->addFunds('entity-1', $topupInvoice->getId(), 100.0);
@@ -818,7 +818,7 @@ class BillingTest extends TestCase
         $this->assertEquals(70.0, $this->billing->getWalletBalance('entity-1'));
     }
 
-    public function test_deduct_funds_insufficient_balance(): void
+    public function testDeductFundsInsufficientBalance(): void
     {
         $topupInvoice = $this->billing->createInvoice('entity-1', 'wallet_topup');
         $this->billing->addFunds('entity-1', $topupInvoice->getId(), 10.0);
@@ -830,7 +830,7 @@ class BillingTest extends TestCase
         $this->billing->deductFunds('entity-1', $payInvoice->getId(), 50.0);
     }
 
-    public function test_refund_to_wallet(): void
+    public function testRefundToWallet(): void
     {
         $topupInvoice = $this->billing->createInvoice('entity-1', 'wallet_topup');
         $this->billing->addFunds('entity-1', $topupInvoice->getId(), 100.0);
@@ -848,7 +848,7 @@ class BillingTest extends TestCase
     // Transactions
     // =========================================================================
 
-    public function test_create_transaction(): void
+    public function testCreateTransaction(): void
     {
         $invoice = $this->billing->createInvoice('entity-1', 'subscription');
         $transaction = $this->billing->createTransaction(
@@ -869,7 +869,7 @@ class BillingTest extends TestCase
         $this->assertTrue($transaction->isGatewayTransaction());
     }
 
-    public function test_list_transactions(): void
+    public function testListTransactions(): void
     {
         $invoice = $this->billing->createInvoice('entity-1', 'subscription');
         $this->billing->createTransaction('entity-1', $invoice->getId(), TransactionType::GatewayCharge->value, 50.0);
@@ -880,7 +880,7 @@ class BillingTest extends TestCase
         $this->assertCount(2, $transactions);
     }
 
-    public function test_list_invoice_transactions(): void
+    public function testListInvoiceTransactions(): void
     {
         $invoice1 = $this->billing->createInvoice('entity-1', 'subscription');
         $invoice2 = $this->billing->createInvoice('entity-1', 'wallet_topup');
@@ -897,7 +897,7 @@ class BillingTest extends TestCase
     // Events
     // =========================================================================
 
-    public function test_event_system(): void
+    public function testEventSystem(): void
     {
         $events = [];
 
@@ -921,7 +921,7 @@ class BillingTest extends TestCase
         $this->assertEquals(['subscription.created', 'invoice.finalized', 'invoice.paid'], $events);
     }
 
-    public function test_multiple_listeners_per_event(): void
+    public function testMultipleListenersPerEvent(): void
     {
         $count = 0;
 
@@ -941,7 +941,7 @@ class BillingTest extends TestCase
     // Period & Proration
     // =========================================================================
 
-    public function test_get_current_period(): void
+    public function testGetCurrentPeriod(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
 
@@ -952,7 +952,7 @@ class BillingTest extends TestCase
         $this->assertTrue($period->contains(new DateTime));
     }
 
-    public function test_calculate_proration(): void
+    public function testCalculateProration(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
 
@@ -967,7 +967,7 @@ class BillingTest extends TestCase
     // Coupon Redeemability Edge Cases
     // =========================================================================
 
-    public function test_expired_coupon_not_redeemable(): void
+    public function testExpiredCouponNotRedeemable(): void
     {
         $past = (new DateTime)->modify('-1 day')->format('Y-m-d\TH:i:s.000+00:00');
         $coupon = $this->billing->createCoupon('EXPIRED', 'percentage', 10.0, 'once', null, [
@@ -977,7 +977,7 @@ class BillingTest extends TestCase
         $this->assertFalse($coupon->isRedeemable());
     }
 
-    public function test_max_redemptions_reached_coupon_not_redeemable(): void
+    public function testMaxRedemptionsReachedCouponNotRedeemable(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->createCoupon('LIMITED', 'percentage', 10.0, 'once', null, [
@@ -990,7 +990,7 @@ class BillingTest extends TestCase
         $this->assertFalse($coupon->isRedeemable());
     }
 
-    public function test_cannot_apply_expired_coupon(): void
+    public function testCannotApplyExpiredCoupon(): void
     {
         $past = (new DateTime)->modify('-1 day')->format('Y-m-d\TH:i:s.000+00:00');
         $this->billing->createCoupon('OLD', 'percentage', 10.0, 'once', null, [
@@ -1004,7 +1004,7 @@ class BillingTest extends TestCase
         $this->billing->applyDiscount('OLD', $sub->getId(), 'entity-1');
     }
 
-    public function test_cannot_apply_maxed_out_coupon(): void
+    public function testCannotApplyMaxedOutCoupon(): void
     {
         $this->billing->createCoupon('ONEUSE', 'percentage', 10.0, 'once', null, [
             'maxRedemptions' => 1,
@@ -1023,7 +1023,7 @@ class BillingTest extends TestCase
     // Subscription State Machine Edge Cases
     // =========================================================================
 
-    public function test_record_multiple_payment_failures(): void
+    public function testRecordMultiplePaymentFailures(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->recordPaymentSuccess($sub->getId());
@@ -1036,7 +1036,7 @@ class BillingTest extends TestCase
         $this->assertEquals(SubscriptionStatus::PastDue, $result->getStatus());
     }
 
-    public function test_payment_recovery_after_multiple_failures(): void
+    public function testPaymentRecoveryAfterMultipleFailures(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->recordPaymentSuccess($sub->getId());
@@ -1051,7 +1051,7 @@ class BillingTest extends TestCase
         $this->assertNull($recovered->getLastFailedAt());
     }
 
-    public function test_trial_to_active_on_payment_success(): void
+    public function testTrialToActiveOnPaymentSuccess(): void
     {
         $trialEnd = (new DateTime)->modify('+14 days');
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro', $trialEnd);
@@ -1062,7 +1062,7 @@ class BillingTest extends TestCase
         $this->assertEquals(SubscriptionStatus::Active, $activated->getStatus());
     }
 
-    public function test_suspended_subscription_not_accessible(): void
+    public function testSuspendedSubscriptionNotAccessible(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->recordPaymentSuccess($sub->getId());
@@ -1075,7 +1075,7 @@ class BillingTest extends TestCase
         $this->assertFalse($suspended->isTerminal());
     }
 
-    public function test_budget_reset_on_renewal(): void
+    public function testBudgetResetOnRenewal(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->recordPaymentSuccess($sub->getId());
@@ -1088,7 +1088,7 @@ class BillingTest extends TestCase
         $this->assertFalse($renewed->getBudgetLimitReached());
     }
 
-    public function test_budget_null_is_unlimited(): void
+    public function testBudgetNullIsUnlimited(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
 
@@ -1103,7 +1103,7 @@ class BillingTest extends TestCase
     // Wallet Edge Cases
     // =========================================================================
 
-    public function test_multiple_wallet_operations(): void
+    public function testMultipleWalletOperations(): void
     {
         $inv1 = $this->billing->createInvoice('entity-1', 'wallet_topup');
         $inv2 = $this->billing->createInvoice('entity-1', 'subscription');
@@ -1116,7 +1116,7 @@ class BillingTest extends TestCase
         $this->assertEquals(120.0, $this->billing->getWalletBalance('entity-1'));
     }
 
-    public function test_wallet_exact_balance_deduction(): void
+    public function testWalletExactBalanceDeduction(): void
     {
         $topup = $this->billing->createInvoice('entity-1', 'wallet_topup');
         $this->billing->addFunds('entity-1', $topup->getId(), 50.0);
@@ -1128,7 +1128,7 @@ class BillingTest extends TestCase
         $this->assertEquals(0.0, $this->billing->getWalletBalance('entity-1'));
     }
 
-    public function test_refund_to_wallet_rejects_non_positive(): void
+    public function testRefundToWalletRejectsNonPositive(): void
     {
         $invoice = $this->billing->createInvoice('entity-1', 'subscription');
 
@@ -1136,7 +1136,7 @@ class BillingTest extends TestCase
         $this->billing->refundToWallet('entity-1', $invoice->getId(), -5.0);
     }
 
-    public function test_deduct_funds_rejects_non_positive(): void
+    public function testDeductFundsRejectsNonPositive(): void
     {
         $invoice = $this->billing->createInvoice('entity-1', 'subscription');
 
@@ -1148,7 +1148,7 @@ class BillingTest extends TestCase
     // Invoice Void/Failed Edge Cases
     // =========================================================================
 
-    public function test_void_draft_invoice(): void
+    public function testVoidDraftInvoice(): void
     {
         $invoice = $this->billing->createInvoice('entity-1', 'subscription', null, [
             ['type' => 'plan', 'description' => 'Plan', 'amount' => 10.0],
@@ -1158,7 +1158,7 @@ class BillingTest extends TestCase
         $this->assertEquals(InvoiceStatus::Voided, $voided->getStatus());
     }
 
-    public function test_cannot_pay_draft_invoice(): void
+    public function testCannotPayDraftInvoice(): void
     {
         $invoice = $this->billing->createInvoice('entity-1', 'subscription', null, [
             ['type' => 'plan', 'description' => 'Plan', 'amount' => 10.0],
@@ -1169,7 +1169,7 @@ class BillingTest extends TestCase
         $this->billing->markInvoicePaid($invoice->getId(), 'pay-1');
     }
 
-    public function test_cannot_fail_draft_invoice(): void
+    public function testCannotFailDraftInvoice(): void
     {
         $invoice = $this->billing->createInvoice('entity-1', 'subscription', null, [
             ['type' => 'plan', 'description' => 'Plan', 'amount' => 10.0],
@@ -1179,7 +1179,7 @@ class BillingTest extends TestCase
         $this->billing->markInvoiceFailed($invoice->getId());
     }
 
-    public function test_cannot_void_voided_invoice(): void
+    public function testCannotVoidVoidedInvoice(): void
     {
         $invoice = $this->billing->createInvoice('entity-1', 'subscription', null, [
             ['type' => 'plan', 'description' => 'Plan', 'amount' => 10.0],
@@ -1194,7 +1194,7 @@ class BillingTest extends TestCase
     // Event Edge Cases
     // =========================================================================
 
-    public function test_discount_exhausted_event(): void
+    public function testDiscountExhaustedEvent(): void
     {
         $exhaustedFired = false;
         $this->billing->on('discount.exhausted', function () use (&$exhaustedFired) {
@@ -1214,7 +1214,7 @@ class BillingTest extends TestCase
         $this->assertTrue($exhaustedFired);
     }
 
-    public function test_wallet_funded_event(): void
+    public function testWalletFundedEvent(): void
     {
         $eventFired = false;
         $this->billing->on('wallet.funded', function () use (&$eventFired) {
@@ -1227,7 +1227,7 @@ class BillingTest extends TestCase
         $this->assertTrue($eventFired);
     }
 
-    public function test_wallet_deducted_event(): void
+    public function testWalletDeductedEvent(): void
     {
         $eventFired = false;
         $this->billing->on('wallet.deducted', function () use (&$eventFired) {
@@ -1242,7 +1242,7 @@ class BillingTest extends TestCase
         $this->assertTrue($eventFired);
     }
 
-    public function test_subscription_suspended_event(): void
+    public function testSubscriptionSuspendedEvent(): void
     {
         $eventFired = false;
         $this->billing->on('subscription.suspended', function () use (&$eventFired) {
@@ -1256,7 +1256,7 @@ class BillingTest extends TestCase
         $this->assertTrue($eventFired);
     }
 
-    public function test_transaction_created_event(): void
+    public function testTransactionCreatedEvent(): void
     {
         $eventFired = false;
         $this->billing->on('transaction.created', function () use (&$eventFired) {
@@ -1269,7 +1269,7 @@ class BillingTest extends TestCase
         $this->assertTrue($eventFired);
     }
 
-    public function test_upgrade_downgrade_events(): void
+    public function testUpgradeDowngradeEvents(): void
     {
         $events = [];
         $this->billing->on('subscription.upgrade_pending', function () use (&$events) {
@@ -1301,7 +1301,7 @@ class BillingTest extends TestCase
     // finalizeInvoice Edge Cases
     // =========================================================================
 
-    public function test_finalize_invoice_with_multiple_discounts(): void
+    public function testFinalizeInvoiceWithMultipleDiscounts(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->recordPaymentSuccess($sub->getId());
@@ -1330,7 +1330,7 @@ class BillingTest extends TestCase
         $this->assertCount(2, $discountItems);
     }
 
-    public function test_finalize_invoice_fixed_discount_exceeding_subtotal(): void
+    public function testFinalizeInvoiceFixedDiscountExceedingSubtotal(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->recordPaymentSuccess($sub->getId());
@@ -1351,7 +1351,7 @@ class BillingTest extends TestCase
         $this->assertEquals(0.0, $finalized->getTotal());
     }
 
-    public function test_finalize_invoice_forever_discount_does_not_decrement(): void
+    public function testFinalizeInvoiceForeverDiscountDoesNotDecrement(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->recordPaymentSuccess($sub->getId());
@@ -1374,7 +1374,7 @@ class BillingTest extends TestCase
         $this->assertTrue($discounts[0]->isActive());
     }
 
-    public function test_finalize_invoice_repeating_discount_countdown(): void
+    public function testFinalizeInvoiceRepeatingDiscountCountdown(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->recordPaymentSuccess($sub->getId());
@@ -1403,7 +1403,7 @@ class BillingTest extends TestCase
         $this->assertCount(0, $activeDiscounts);
     }
 
-    public function test_finalize_invoice_line_level_discount_no_matching_resources(): void
+    public function testFinalizeInvoiceLineLevelDiscountNoMatchingResources(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->recordPaymentSuccess($sub->getId());
@@ -1427,7 +1427,7 @@ class BillingTest extends TestCase
         $this->assertEquals(120.0, $finalized->getTotal());
     }
 
-    public function test_finalize_invoice_empty_items(): void
+    public function testFinalizeInvoiceEmptyItems(): void
     {
         $invoice = $this->billing->createInvoice('entity-1', 'subscription', null, []);
 
@@ -1438,7 +1438,7 @@ class BillingTest extends TestCase
         $this->assertEquals(InvoiceStatus::Finalized, $finalized->getStatus());
     }
 
-    public function test_finalize_invoice_one_off_without_subscription(): void
+    public function testFinalizeInvoiceOneOffWithoutSubscription(): void
     {
         $invoice = $this->billing->createInvoice('entity-1', 'addon_purchase', null, [
             ['type' => 'addon', 'description' => 'Custom Domain', 'amount' => 9.99],
@@ -1455,7 +1455,7 @@ class BillingTest extends TestCase
         $this->assertNull($finalized->getSubscriptionId());
     }
 
-    public function test_finalize_invoice_tax_after_discounts(): void
+    public function testFinalizeInvoiceTaxAfterDiscounts(): void
     {
         $sub = $this->billing->createSubscription('entity-1', 'plan-pro');
         $this->billing->recordPaymentSuccess($sub->getId());
@@ -1482,7 +1482,7 @@ class BillingTest extends TestCase
     // Facade List Methods Coverage
     // =========================================================================
 
-    public function test_list_coupons(): void
+    public function testListCoupons(): void
     {
         $this->billing->createCoupon('LIST_A', 'percentage', 5.0, 'once');
         $this->billing->createCoupon('LIST_B', 'fixed', 10.0, 'forever');
@@ -1492,7 +1492,7 @@ class BillingTest extends TestCase
         $this->assertInstanceOf(Coupon::class, $coupons[0]);
     }
 
-    public function test_get_transaction(): void
+    public function testGetTransaction(): void
     {
         $invoice = $this->billing->createInvoice('entity-tx', 'subscription');
         $tx = $this->billing->createTransaction('entity-tx', $invoice->getId(), TransactionType::GatewayCharge->value, 10.0);
@@ -1501,19 +1501,19 @@ class BillingTest extends TestCase
         $this->assertEquals($tx->getId(), $fetched->getId());
     }
 
-    public function test_get_transaction_not_found(): void
+    public function testGetTransactionNotFound(): void
     {
         $this->expectException(Exception::class);
         $this->billing->getTransaction('nonexistent');
     }
 
-    public function test_get_invoice_not_found(): void
+    public function testGetInvoiceNotFound(): void
     {
         $this->expectException(Exception::class);
         $this->billing->getInvoice('nonexistent');
     }
 
-    public function test_get_discount_not_found(): void
+    public function testGetDiscountNotFound(): void
     {
         $this->expectException(Exception::class);
         $this->billing->getDiscount('nonexistent');

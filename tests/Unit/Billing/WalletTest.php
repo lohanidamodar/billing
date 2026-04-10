@@ -10,7 +10,7 @@ use Utopia\Database\Document;
 
 class WalletTest extends TestCase
 {
-    public function test_wallet_model(): void
+    public function testWalletModel(): void
     {
         $doc = new Document([
             '$id' => 'wal-1',
@@ -28,7 +28,7 @@ class WalletTest extends TestCase
         $this->assertEquals('wallets', Wallet::getName());
     }
 
-    public function test_wallet_boundary_balance(): void
+    public function testWalletBoundaryBalance(): void
     {
         $doc = new Document(['$id' => 'wal-test', 'balance' => 50.0, 'metadata' => []]);
         $wallet = new Wallet($doc);
@@ -44,7 +44,7 @@ class WalletTest extends TestCase
         $this->assertTrue($wallet->isEmpty());
     }
 
-    public function test_wallet_all_setters_getters(): void
+    public function testWalletAllSettersGetters(): void
     {
         $doc = new Document(['$id' => 'wal-cov', 'metadata' => '{}']);
         $wal = new Wallet($doc);

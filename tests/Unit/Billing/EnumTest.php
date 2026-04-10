@@ -16,7 +16,7 @@ use Utopia\Billing\TransactionType;
 
 class EnumTest extends TestCase
 {
-    public function test_subscription_status_is_accessible(): void
+    public function testSubscriptionStatusIsAccessible(): void
     {
         $this->assertTrue(SubscriptionStatus::Active->isAccessible());
         $this->assertTrue(SubscriptionStatus::Trialing->isAccessible());
@@ -28,7 +28,7 @@ class EnumTest extends TestCase
         $this->assertFalse(SubscriptionStatus::Suspended->isAccessible());
     }
 
-    public function test_subscription_status_is_terminal(): void
+    public function testSubscriptionStatusIsTerminal(): void
     {
         $this->assertTrue(SubscriptionStatus::IncompleteExpired->isTerminal());
         $this->assertTrue(SubscriptionStatus::Canceled->isTerminal());
@@ -40,7 +40,7 @@ class EnumTest extends TestCase
         $this->assertFalse(SubscriptionStatus::Suspended->isTerminal());
     }
 
-    public function test_invoice_status_is_finalized(): void
+    public function testInvoiceStatusIsFinalized(): void
     {
         $this->assertTrue(InvoiceStatus::Finalized->isFinalized());
         $this->assertTrue(InvoiceStatus::Paid->isFinalized());
@@ -49,7 +49,7 @@ class EnumTest extends TestCase
         $this->assertFalse(InvoiceStatus::Draft->isFinalized());
     }
 
-    public function test_transaction_type_categories(): void
+    public function testTransactionTypeCategories(): void
     {
         // Wallet types
         $this->assertTrue(TransactionType::WalletTopup->isWallet());
@@ -71,7 +71,7 @@ class EnumTest extends TestCase
         $this->assertFalse(TransactionType::WalletTopup->isCredit());
     }
 
-    public function test_enum_backed_values(): void
+    public function testEnumBackedValues(): void
     {
         $this->assertEquals('active', SubscriptionStatus::Active->value);
         $this->assertEquals('past_due', SubscriptionStatus::PastDue->value);

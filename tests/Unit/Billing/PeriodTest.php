@@ -11,7 +11,7 @@ use Utopia\Billing\Period;
 
 class PeriodTest extends TestCase
 {
-    public function test_period_value_object(): void
+    public function testPeriodValueObject(): void
     {
         $start = new DateTime('2026-04-01');
         $end = new DateTime('2026-04-30');
@@ -24,13 +24,13 @@ class PeriodTest extends TestCase
         $this->assertFalse($period->isExpired(new DateTime('2026-04-15')));
     }
 
-    public function test_period_invalid_range(): void
+    public function testPeriodInvalidRange(): void
     {
         $this->expectException(Exception::class);
         new Period(new DateTime('2026-04-30'), new DateTime('2026-04-01'));
     }
 
-    public function test_period_overlap(): void
+    public function testPeriodOverlap(): void
     {
         $p1 = new Period(new DateTime('2026-04-01'), new DateTime('2026-04-15'));
         $p2 = new Period(new DateTime('2026-04-10'), new DateTime('2026-04-25'));
@@ -40,7 +40,7 @@ class PeriodTest extends TestCase
         $this->assertFalse($p1->overlaps($p3));
     }
 
-    public function test_period_same_start_and_end(): void
+    public function testPeriodSameStartAndEnd(): void
     {
         $date = new DateTime('2026-04-15');
         $period = new Period($date, clone $date);
@@ -49,7 +49,7 @@ class PeriodTest extends TestCase
         $this->assertTrue($period->contains(clone $date));
     }
 
-    public function test_period_contains_boundary_dates(): void
+    public function testPeriodContainsBoundaryDates(): void
     {
         $start = new DateTime('2026-04-01');
         $end = new DateTime('2026-04-30');
@@ -61,7 +61,7 @@ class PeriodTest extends TestCase
         $this->assertFalse($period->contains(new DateTime('2026-05-01')));
     }
 
-    public function test_period_is_expired_with_custom_date(): void
+    public function testPeriodIsExpiredWithCustomDate(): void
     {
         $period = new Period(new DateTime('2026-04-01'), new DateTime('2026-04-30'));
 
@@ -70,7 +70,7 @@ class PeriodTest extends TestCase
         $this->assertFalse($period->isExpired(new DateTime('2026-04-30'))); // end date is not expired yet
     }
 
-    public function test_period_overlap_adjacent(): void
+    public function testPeriodOverlapAdjacent(): void
     {
         $p1 = new Period(new DateTime('2026-04-01'), new DateTime('2026-04-15'));
         $p2 = new Period(new DateTime('2026-04-15'), new DateTime('2026-04-30'));
