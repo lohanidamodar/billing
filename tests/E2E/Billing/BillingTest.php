@@ -9,6 +9,7 @@ use PDO;
 use PHPUnit\Framework\TestCase;
 use Utopia\Billing\Adapter\Database as DatabaseAdapter;
 use Utopia\Billing\Billing;
+use Utopia\Billing\BillingEvent;
 use Utopia\Billing\ChangeType;
 use Utopia\Billing\CouponDuration;
 use Utopia\Billing\CouponType;
@@ -506,16 +507,16 @@ class BillingTest extends TestCase
         $billing = self::billing();
         $events = [];
 
-        $billing->on('subscription.created', function () use (&$events) {
+        $billing->on(BillingEvent::SubscriptionCreated, 'test', function () use (&$events) {
             $events[] = 'subscription.created';
         });
-        $billing->on('invoice.finalized', function () use (&$events) {
+        $billing->on(BillingEvent::InvoiceFinalized, 'test', function () use (&$events) {
             $events[] = 'invoice.finalized';
         });
-        $billing->on('invoice.paid', function () use (&$events) {
+        $billing->on(BillingEvent::InvoicePaid, 'test', function () use (&$events) {
             $events[] = 'invoice.paid';
         });
-        $billing->on('wallet.funded', function () use (&$events) {
+        $billing->on(BillingEvent::WalletFunded, 'test', function () use (&$events) {
             $events[] = 'wallet.funded';
         });
 

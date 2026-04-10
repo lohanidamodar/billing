@@ -2,20 +2,26 @@
 
 ## Project Overview
 
-`utopia-php/billing` is a generic billing library for subscription management, invoicing, coupons/discounts, wallets, and unified transactions. Part of the Utopia Framework ecosystem. No application-specific logic — plans and pricing stay config-driven in the consuming app.
+`utopia-php/billing` is a generic billing library for subscription management, invoicing, payment orchestration, coupons/discounts, wallets, and unified transactions. Part of the Utopia Framework ecosystem. No application-specific logic — plans and pricing stay config-driven in the consuming app.
 
 ## Architecture
 
 ### Pattern
-Facade wrapping abstract Adapter with Database adapter (same as `utopia-php/audit` and `utopia-php/abuse`).
+Facade with two adapter slots — **persistence** and **payment gateway** — following the same Facade + Adapter pattern used across all utopia-php libraries (`audit`, `abuse`, `database`, `messaging`, etc.).
 
 ```
-Billing (facade) → Adapter (abstract) → Adapter\Database (uses utopia-php/database)
+Billing (facade)
+  ├── Adapter (abstract)        → persistence layer
+  │     └── Adapter\Database    → uses utopia-php/database
+  │
+  └── Payment (abstract)        → payment gateway (optional)
+        ├── Payment\Pay         → wraps utopia-php/pay (Stripe, etc.)
+        └── Payment\Manual      → wallet-only / offline (default when no gateway)
 ```
 
 ### Dependencies
-- `utopia-php/database` — persistence (collections, documents, queries)
-- `utopia-php/pay` — Invoice/Credit/Discount calculation utilities moved here from Pay. Pay itself is NOT a dependency — the app coordinates payment gateway calls.
+- `utopia-php/database` (required) — persistence (collections, documents, queries)
+- `utopia-php/pay` (suggested) — only needed when using `Payment\Pay` adapter. Use branch `claude/improve-utopia-library-EdGjh` for structured response models.
 
 ### Namespace
 `Utopia\Billing` — PSR-4: `Utopia\\Billing\\` → `src/Billing/`
@@ -24,7 +30,7 @@ Billing (facade) → Adapter (abstract) → Adapter\Database (uses utopia-php/da
 
 ## Collections
 
-6 collections, namespace-isolated via `$db->setNamespace()` (no hardcoded prefix — follows `audit`, `abuse`, `usage` convention).
+6 collections, namespace-isolated via `$db->setNamespace()` (no hardcoded prefix — follows `audit`, `abuse` convention).
 
 ### subscriptions
 
@@ -34,7 +40,7 @@ Billing (facade) → Adapter (abstract) → Adapter\Database (uses utopia-php/da
     'entityId'              => string,      // who owns this (team, user, org)
     'entityType'            => string,      // 'organization', 'user', etc.
     'planId'                => string,      // current active plan
-    'status'                => string,      // see State Machine below
+    'status'                => string,      // SubscriptionStatus enum
 
     // Billing period
     'currentPeriodStart'    => datetime,
@@ -46,7 +52,7 @@ Billing (facade) → Adapter (abstract) → Adapter\Database (uses utopia-php/da
 
     // Pending plan changes (upgrade/downgrade)
     'pendingPlanId'         => ?string,     // requested new plan
-    'pendingChangeType'     => ?string,     // 'upgrade' | 'downgrade'
+    'pendingChangeType'     => ?string,     // ChangeType enum: 'upgrade' | 'downgrade'
     'pendingChangedAt'      => ?datetime,   // when change was requested
     'pendingExpiresAt'      => ?datetime,   // auto-expire for upgrades (23h default)
     'pendingInvoiceId'      => ?string,     // upgrade invoice awaiting payment
@@ -64,39 +70,39 @@ Billing (facade) → Adapter (abstract) → Adapter\Database (uses utopia-php/da
     // Cancellation
     'cancelAtPeriodEnd'     => bool,
 
-    'metadata'              => array,
+    'metadata'              => string,      // JSON-encoded
 ]
 ```
 
 ### invoices
 
-Invoices are created at cycle END only. No "pending" invoices mid-cycle. Invoice is immutable once created.
+Invoices are created at cycle END only. No "pending" invoices mid-cycle. Invoice is immutable once finalized.
 
 ```php
 [
     'id'                    => string,
-    'subscriptionId'        => ?string,     // null for one-off (domain, addon, wallet topup)
+    'subscriptionId'        => ?string,     // null for one-off invoices
     'referenceInvoiceId'    => ?string,     // set for credit notes (points to original)
     'entityId'              => string,
-    'type'                  => string,      // 'subscription', 'domain_purchase', 'wallet_topup', 'credit_note', etc.
+    'type'                  => string,      // app-defined: 'subscription', 'wallet_topup', 'credit_note', etc.
     'number'                => string,      // configurable format: INV-{year}-{sequence}
-    'status'                => string,      // 'draft', 'finalized', 'paid', 'failed', 'voided'
+    'status'                => string,      // InvoiceStatus enum
 
     // Line items (denormalized — see Line Item Structure below)
-    'items'                 => array,
+    'items'                 => string,      // JSON-encoded array
 
     // Totals (computed during finalization)
-    'subtotal'              => float,       // sum of plan + usage + addon items
-    'discountTotal'         => float,       // sum of discount items (negative)
-    'taxTotal'              => float,       // sum of tax items
-    'total'                 => float,       // subtotal + discountTotal + taxTotal
+    'subtotal'              => float,
+    'discountTotal'         => float,
+    'taxTotal'              => float,
+    'total'                 => float,
     'walletDeducted'        => float,       // deducted from wallet during payment
     'gatewayCharged'        => float,       // charged to payment gateway
 
     'currency'              => string,
     'dueDate'               => ?datetime,
     'paidAt'                => ?datetime,
-    'metadata'              => array,
+    'metadata'              => string,      // JSON-encoded
 ]
 ```
 
@@ -108,17 +114,17 @@ Coupon = reusable template (definition only, not application state).
 [
     'id'                    => string,
     'code'                  => string,      // unique, user-facing
-    'type'                  => string,      // 'fixed' | 'percentage'
+    'type'                  => string,      // CouponType enum: 'fixed' | 'percentage'
     'value'                 => float,       // $20 or 50 (%)
     'currency'              => ?string,     // for fixed type
-    'duration'              => string,      // 'once' | 'repeating' | 'forever'
+    'duration'              => string,      // CouponDuration enum: 'once' | 'repeating' | 'forever'
     'durationInCycles'      => ?int,        // only for 'repeating'
     'maxRedemptions'        => ?int,        // total cap across all entities
     'timesRedeemed'         => int,         // counter
     'expiresAt'             => ?datetime,   // coupon template expiry
-    'scope'                 => ?array,      // { 'planIds': [...], 'resources': [...] }
+    'scope'                 => ?string,     // JSON-encoded: { 'planIds': [...], 'resources': [...] }
     'active'                => bool,
-    'metadata'              => array,
+    'metadata'              => string,      // JSON-encoded
 ]
 ```
 
@@ -132,28 +138,19 @@ Discount = applied instance per subscription. Tracks cycle countdown (Lago patte
     'couponId'              => string,
     'subscriptionId'        => string,
     'entityId'              => string,
-    'type'                  => string,      // 'fixed' | 'percentage' (inherited from coupon)
+    'type'                  => string,      // CouponType enum (inherited from coupon)
     'value'                 => float,       // inherited from coupon
-    'duration'              => string,      // 'once' | 'repeating' | 'forever'
-    'scope'                 => ?array,      // { 'resources': ['bandwidth'] } or null (invoice-level)
+    'duration'              => string,      // CouponDuration enum (inherited from coupon)
+    'scope'                 => ?string,     // JSON-encoded: { 'resources': ['bandwidth'] } or null
     'cyclesTotal'           => ?int,        // original count (null for forever)
     'cyclesRemaining'       => ?int,        // decremented each cycle (null for forever)
-    'status'                => string,      // 'active' | 'exhausted' | 'cancelled'
+    'status'                => string,      // DiscountStatus enum
     'appliedAt'             => datetime,
     'exhaustedAt'           => ?datetime,
     'cancelledAt'           => ?datetime,
-    'metadata'              => array,
+    'metadata'              => string,      // JSON-encoded
 ]
 ```
-
-**Duration behavior:**
-- `once`: cyclesRemaining 1 → 0 → status: exhausted
-- `repeating(3)`: cyclesRemaining 3 → 2 → 1 → 0 → status: exhausted
-- `forever`: cyclesRemaining null, applied every cycle until admin sets status: cancelled
-
-**Scope determines discount level:**
-- `scope: null` → invoice-level (applied to subtotal)
-- `scope: { resources: ['bandwidth'] }` → line-level (only matching items)
 
 ### wallets
 
@@ -165,7 +162,7 @@ User-funded prepaid balance. Fixed coupon credits also go here.
     'entityId'              => string,
     'balance'               => float,
     'currency'              => string,
-    'metadata'              => array,
+    'metadata'              => string,      // JSON-encoded
 ]
 ```
 
@@ -177,14 +174,15 @@ Unified ledger for ALL money movements. Every transaction has an `invoiceId`.
 [
     'id'                    => string,
     'entityId'              => string,
-    'invoiceId'             => string,      // always present (wallet topups generate receipt invoice)
-    'type'                  => string,      // see types below
+    'invoiceId'             => string,      // always present
+    'type'                  => string,      // TransactionType enum
     'amount'                => float,
-    'status'                => string,      // 'pending', 'succeeded', 'failed'
+    'status'                => string,      // TransactionStatus enum
     'walletId'              => ?string,     // for wallet operations
-    'providerPaymentId'     => ?string,     // for gateway operations (Stripe intent ID)
+    'providerPaymentId'     => ?string,     // for gateway operations (Stripe payment intent ID)
+    'clientSecret'          => ?string,     // for 3DS/SCA frontend confirmation
     'description'           => string,
-    'metadata'              => array,
+    'metadata'              => string,      // JSON-encoded
 ]
 ```
 
@@ -194,45 +192,29 @@ Unified ledger for ALL money movements. Every transaction has an `invoiceId`.
 |---|---|---|
 | `gateway_charge` | none | invoiceId, providerPaymentId |
 | `gateway_refund` | none | invoiceId, providerPaymentId |
-| `wallet_topup` | +amount | invoiceId (topup receipt), providerPaymentId |
+| `wallet_topup` | +amount | invoiceId, providerPaymentId |
 | `wallet_deduction` | -amount | invoiceId |
 | `wallet_refund` | +amount | invoiceId |
-| `coupon_credit` | +amount | couponId, expiresAt (optional) |
+| `coupon_credit` | +amount | couponId |
 | `credit_expiry` | -amount | relatedTransactionId |
 
 ---
 
-## Line Item Structure
+## Enums (PHP 8.1 backed enums)
 
-Everything is a line item. Consistent structure regardless of type.
+Closed state sets use backed enums. Open/extensible types (invoice type, entity type) use plain strings.
 
-```php
-[
-    'type'          => string,      // 'plan', 'usage', 'addon', 'discount', 'tax', 'proration', 'refund'
-    'description'   => string,      // human-readable
-    'resource'      => ?string,     // app-defined key: 'bandwidth', 'executions', 'storage', etc.
-    'quantity'      => ?float,      // null for non-quantity items (discount, tax)
-    'unit'          => ?string,     // 'GB', 'executions', 'hours', etc.
-    'unitPrice'     => ?float,      // null for non-quantity items
-    'amount'        => float,       // final amount (negative for discounts/refunds/proration credits)
-    'discountId'    => ?string,     // links to applied discount (for discount line items)
-    'rate'          => ?float,      // for tax items (e.g., 17.0 for 17%)
-    'metadata'      => array,
-]
-```
-
-**Example invoice items:**
-```php
-[
-    ['type' => 'plan',     'description' => 'Pro Plan - April 2026',      'amount' => 15.00],
-    ['type' => 'usage',    'description' => 'Bandwidth (42.5 GB extra)',   'amount' => 3.40,   'resource' => 'bandwidth', 'quantity' => 42.5, 'unit' => 'GB', 'unitPrice' => 0.08],
-    ['type' => 'usage',    'description' => 'Executions (150K extra)',     'amount' => 0.30,   'resource' => 'executions', 'quantity' => 150000, 'unitPrice' => 0.000002],
-    ['type' => 'addon',    'description' => 'HIPAA BAA',                   'amount' => 350.00],
-    ['type' => 'discount', 'description' => 'BW_HALF (50% off bandwidth)','amount' => -1.70,  'resource' => 'bandwidth', 'discountId' => 'disc_xyz'],
-    ['type' => 'discount', 'description' => 'LOYAL10 (10% off)',          'amount' => -36.73, 'discountId' => 'disc_abc'],
-    ['type' => 'tax',      'description' => 'VAT (17%)',                   'amount' => 55.04,  'rate' => 17.0],
-]
-```
+| Enum | Values |
+|---|---|
+| `SubscriptionStatus` | incomplete, incomplete_expired, trialing, active, past_due, canceling, canceled, suspended |
+| `InvoiceStatus` | draft, finalized, paid, failed, voided |
+| `DiscountStatus` | active, exhausted, cancelled |
+| `TransactionStatus` | pending, succeeded, failed |
+| `TransactionType` | gateway_charge, gateway_refund, wallet_topup, wallet_deduction, wallet_refund, coupon_credit, credit_expiry |
+| `CouponType` | fixed, percentage |
+| `CouponDuration` | once, repeating, forever |
+| `ChangeType` | upgrade, downgrade |
+| `BillingEvent` | All event names for the listener system |
 
 ---
 
@@ -246,62 +228,95 @@ past_due → active (retry succeeds) | suspended (max retries exhausted)
 canceling → canceled (period ends)
 ```
 
-| State | Meaning |
-|---|---|
-| `incomplete` | Created, first payment pending (3DS/processing). Auto-expires after timeout. |
-| `incomplete_expired` | First payment not resolved. Terminal — create new subscription. |
-| `trialing` | In trial, no payment yet. Full access. |
-| `active` | Current, payment up to date. Full access. |
-| `past_due` | Renewal payment failed, retrying. Access during grace period. |
-| `canceling` | Active until end of current period. |
-| `canceled` | Terminated. |
-| `suspended` | Payment retries exhausted. Restricted access. |
-
 ### Pending Upgrades
 
-Upgrades do NOT apply immediately. Subscription stores pending change, keeps old plan until payment confirms. Follows Stripe's `pending_if_incomplete` pattern.
-
-1. `requestUpgrade()` → sets pendingPlanId, creates upgrade invoice, emits event
-2. Payment succeeds → `finalizeUpgrade()` → applies plan, clears pending
-3. Payment fails → `cancelUpgrade()` → clears pending, voids invoice
-4. Timeout (configurable, default 23h) → auto-clears pending, voids invoice
+Upgrades do NOT apply immediately. Subscription stores pending change, keeps old plan until payment confirms (Stripe's `pending_if_incomplete` pattern).
 
 ### Downgrades
 
 Deferred to end of cycle. Customer keeps current plan until period ends.
 
-1. `requestDowngrade()` → sets pendingPlanId + pendingChangeType: 'downgrade'
-2. At cycle end → `applyPendingDowngrade()` → switches plan
-3. Cancel before end → `cancelDowngrade()` → clears pending
-
 ### Dunning (Failed Payment)
 
 Library tracks retry state. App schedules actual retries.
 
-- `recordPaymentFailure()` → increments attempts, transitions to `past_due`
-- `recordPaymentSuccess()` → resets counters, back to `active`
-- `suspendSubscription()` → max retries exhausted, transitions to `suspended`
-
 ### Budget / Spending Caps
 
-Budget caps usage-based charges per cycle. No invoice exists mid-cycle — budget tracked on subscription.
+Library tracks usage and computes `budgetLimitReached`. App enforces limits.
 
-- `setBudget()` → sets dollar cap (null = unlimited)
-- `updateBudgetUsed()` → app calls after each aggregation. Library computes `budgetLimitReached`, emits events.
-- `budgetUsed` resets to 0 on renewal
-- Library does NOT enforce limits — only tracks and emits events
+---
+
+## Payment Orchestration
+
+The library owns the full payment flow — wallet deduction, gateway charge, transaction recording, and invoice state transitions. The app just calls `payInvoice()`.
+
+### Payment Adapter
+
+Abstract `Payment` adapter defines the gateway contract. Concrete adapters handle specific providers.
+
+```php
+abstract class Payment
+{
+    abstract public function charge(float $amount, string $currency, string $customerId, ?string $paymentMethodId = null): PaymentResponse;
+    abstract public function refund(string $providerPaymentId, ?float $amount = null, ?string $reason = null): PaymentResponse;
+    abstract public function getName(): string;
+}
+```
+
+**`PaymentResponse`** — value object returned by payment adapters:
+```php
+class PaymentResponse
+{
+    public readonly string $status;             // succeeded, requires_action, processing, failed
+    public readonly ?string $providerPaymentId; // pi_xxx
+    public readonly ?string $clientSecret;      // pi_xxx_secret_yyy (for frontend 3DS/SCA)
+    public readonly ?string $redirectUrl;        // for redirect-based auth (non-Stripe providers)
+    public readonly ?string $errorCode;
+    public readonly ?string $errorMessage;
+}
+```
+
+**Adapters:**
+- `Payment\Pay` — wraps `utopia-php/pay` (Stripe). Translates `Pay\Payment\Payment` → `PaymentResponse`.
+- `Payment\Manual` — wallet-only or offline. Always returns `succeeded` (no gateway call).
+
+### Payment Flow: `payInvoice()`
+
+```
+1. Get finalized invoice (throw if not finalized)
+2. Calculate total
+3. Wallet-first: deduct min(walletBalance, total) → create wallet_deduction transaction
+4. If remaining > 0: call Payment->charge() → get PaymentResponse
+   a. succeeded → create gateway_charge transaction (succeeded), mark invoice paid
+   b. requires_action → create gateway_charge transaction (pending), return response with clientSecret
+   c. processing → create gateway_charge transaction (pending), return response
+   d. failed → create gateway_charge transaction (failed), record dunning state
+5. If remaining == 0 (fully wallet-paid): mark invoice paid
+6. Update invoice walletDeducted + gatewayCharged
+7. Return PaymentResponse
+```
+
+### Async Payment Confirmation
+
+For 3DS/SCA and async processing, the app receives webhook confirmations and calls:
+
+- `confirmPayment(invoiceId, providerPaymentId)` — marks transaction succeeded, invoice paid
+- `failPayment(invoiceId, providerPaymentId)` — marks transaction failed, records dunning
+- `retryPayment(invoiceId, customerId)` — re-attempts via Payment adapter
+
+### Refund Flow: `refundInvoice()`
+
+```
+1. Get paid invoice
+2. If gateway amount > 0: call Payment->refund() → create gateway_refund transaction
+3. If wallet amount > 0: credit wallet → create wallet_refund transaction
+4. Create credit note invoice
+5. Return credit note
+```
 
 ---
 
 ## Invoice Lifecycle
-
-**Critical:** Invoices are created at cycle END only. No "pending" invoices mid-cycle.
-
-- Mid-cycle: No invoice. App tracks usage via aggregation. App calls `updateBudgetUsed()`.
-- Cycle end: App computes final amounts, creates invoice with line items, library finalizes.
-- Invoice is immutable once created.
-
-### Finalization Flow
 
 ```
 1. App computes usage from aggregation pipeline
@@ -314,34 +329,37 @@ Budget caps usage-based charges per cycle. No invoice exists mid-cycle — budge
    e. Adds tax line items (app provides rate + taxable types)
    f. Computes subtotal, discountTotal, taxTotal, total
    g. Generates invoice number
-   h. Emits 'invoice.finalized'
-4. App orchestrates payment: wallet deduction → gateway charge
-5. App calls markInvoicePaid() or markInvoiceFailed()
+4. App calls payInvoice() — library does:
+   a. Wallet deduction (wallet-first)
+   b. Gateway charge (via Payment adapter)
+   c. Transaction recording
+   d. Invoice state → paid (or pending for 3DS)
+5. If 3DS: app receives webhook → calls confirmPayment() or failPayment()
 ```
 
-### Credit Notes
+---
 
-Invoices with `type: 'credit_note'` and `referenceInvoiceId`. Negative line items. No separate collection.
+## Event System
 
-### Invoice Types (app-defined, library is type-agnostic)
-- `subscription` — recurring billing
-- `domain_purchase` — one-off
-- `domain_renewal` — one-off
-- `addon_*` — one-off addon charge
-- `wallet_topup` — wallet funding receipt
-- `credit_note` — refund document
+Follows the same pattern as `utopia-php/database` — named listeners with `on()` method.
 
-### Amount Calculation Split
+```php
+$billing->on(BillingEvent::InvoicePaid, 'notify-user', function (Invoice $invoice) {
+    // send email
+});
+```
 
-| Concern | Library | App |
-|---|---|---|
-| Usage aggregation | | App (aggregation pipeline) |
-| Usage → amount (qty × price) | | App (knows plan pricing) |
-| Discount application | finalizeInvoice() | |
-| Tax computation | finalizeInvoice() (app provides rate) | |
-| Total calculation | finalizeInvoice() | |
-| Budget tracking | updateBudgetUsed() | Calls after aggregation |
-| Budget enforcement | Emits events | Blocks API calls |
+`BillingEvent` enum defines all event names:
+- subscription.created, subscription.upgraded, subscription.downgraded, subscription.canceled, subscription.suspended, subscription.renewed
+- subscription.upgrade_pending, subscription.upgrade_failed
+- subscription.downgrade_scheduled
+- subscription.budget_warning, subscription.budget_reached
+- invoice.finalized, invoice.paid, invoice.failed, invoice.voided
+- discount.applied, discount.exhausted, discount.cancelled
+- wallet.funded, wallet.deducted
+- coupon.redeemed
+- payment.failed, payment.requires_action
+- transaction.created
 
 ---
 
@@ -350,21 +368,12 @@ Invoices with `type: 'credit_note'` and `referenceInvoiceId`. Negative line item
 ```php
 class Billing
 {
-    public function __construct(Adapter $adapter, array $options = []) {}
-    // Options: 'invoiceNumberFormat' => 'INV-{year}-{sequence}'
+    public function __construct(Adapter $adapter, ?Payment $payment = null, array $options = []) {}
 
-    public function setup(): void  // Creates 6 collections
+    public function setup(): void
 
-    // Events
-    public function on(string $event, callable $callback): self
-    // Events: subscription.created, subscription.upgraded, subscription.downgraded,
-    //         subscription.canceled, subscription.suspended, subscription.renewed,
-    //         subscription.upgrade_pending, subscription.upgrade_failed, subscription.upgrade_expired,
-    //         subscription.downgrade_scheduled, subscription.budget_warning, subscription.budget_reached,
-    //         invoice.finalized, invoice.paid, invoice.failed, invoice.voided,
-    //         discount.applied, discount.exhausted, discount.cancelled,
-    //         wallet.funded, wallet.deducted, coupon.redeemed,
-    //         payment.failed, payment.retry_scheduled, transaction.created
+    // Events (same pattern as utopia-php/database)
+    public function on(BillingEvent $event, string $name, ?callable $callback): self
 
     // --- Subscriptions ---
     public function createSubscription(string $entityId, string $planId, ?DateTime $trialEnd = null): Subscription
@@ -396,11 +405,15 @@ class Billing
     public function listInvoices(string $entityId, array $filters = []): array
     public function addInvoiceItem(string $invoiceId, array $item): Invoice
     public function finalizeInvoice(string $invoiceId, array $options = []): Invoice
-    // Options: 'taxRate', 'taxDescription', 'taxableTypes' => ['plan', 'usage', 'addon']
-    public function markInvoicePaid(string $invoiceId, string $paymentId): Invoice
-    public function markInvoiceFailed(string $invoiceId): Invoice
     public function voidInvoice(string $invoiceId): Invoice
     public function createCreditNote(string $referenceInvoiceId, array $refundItems): Invoice
+
+    // --- Payment Orchestration (NEW) ---
+    public function payInvoice(string $invoiceId, string $customerId, ?string $paymentMethodId = null): PaymentResponse
+    public function confirmPayment(string $invoiceId, string $providerPaymentId): Invoice
+    public function failPayment(string $invoiceId, string $providerPaymentId): Invoice
+    public function retryPayment(string $invoiceId, string $customerId, ?string $paymentMethodId = null): PaymentResponse
+    public function refundInvoice(string $invoiceId, ?float $amount = null, ?string $reason = null): Invoice
 
     // --- Coupons ---
     public function createCoupon(string $code, string $type, float $value, string $duration, ?int $durationInCycles = null, array $options = []): Coupon
@@ -417,9 +430,9 @@ class Billing
     // --- Wallet ---
     public function getOrCreateWallet(string $entityId, string $currency = 'USD'): Wallet
     public function getWalletBalance(string $entityId): float
-    public function addFunds(string $entityId, string $invoiceId, float $amount, string $description = ''): Transaction
-    public function deductFunds(string $entityId, string $invoiceId, float $amount, string $description = ''): Transaction
-    public function refundToWallet(string $entityId, string $invoiceId, float $amount, string $description = ''): Transaction
+    public function addFunds(string $entityId, string $invoiceId, float $amount): Transaction
+    public function deductFunds(string $entityId, string $invoiceId, float $amount): Transaction
+    public function refundToWallet(string $entityId, string $invoiceId, float $amount): Transaction
 
     // --- Transactions ---
     public function createTransaction(string $entityId, string $invoiceId, string $type, float $amount, ?string $walletId = null, ?string $providerPaymentId = null): Transaction
@@ -430,6 +443,10 @@ class Billing
     // --- Period ---
     public function getCurrentPeriod(string $subscriptionId): Period
     public function calculateProration(string $subscriptionId, string $newPlanId, float $newPrice): float
+
+    // --- Retained for direct control (markInvoicePaid/Failed still public) ---
+    public function markInvoicePaid(string $invoiceId, string $paymentId): Invoice
+    public function markInvoiceFailed(string $invoiceId): Invoice
 }
 ```
 
@@ -439,9 +456,8 @@ class Billing
 
 - `Render\Renderer` — abstract base class
 - `Render\HTML` — built-in, uses `.phtml` templates (zero deps)
-- `Render\PDF` — optional, wraps mPDF/dompdf (composer suggest)
 - Default template in `templates/invoice.phtml`
-- Custom template: pass path to `render($invoice, '/path/to/custom.phtml')`
+- Custom template: pass path in options array
 - Template receives: `$invoice`, `$items`, `$entity` (app-provided), `$issuer` (app-provided)
 
 ---
@@ -451,25 +467,31 @@ class Billing
 ```
 src/Billing/
     Billing.php              # Main facade
-    Adapter.php              # Abstract adapter
+    Adapter.php              # Abstract persistence adapter
     Adapter/
-        Database.php         # Database adapter (setup + all CRUD)
+        Database.php         # Database adapter (utopia-php/database)
+    Payment.php              # Abstract payment adapter
+    Payment/
+        Pay.php              # Pay adapter (utopia-php/pay)
+        Manual.php           # Manual/wallet-only adapter
+    PaymentResponse.php      # Value object for payment results
+    BillingEvent.php         # Enum: all event names
     Subscription.php
-    SubscriptionStatus.php   # Enum: incomplete, active, past_due, etc.
+    SubscriptionStatus.php   # Enum
     Invoice.php
-    InvoiceStatus.php        # Enum: draft, finalized, paid, etc.
+    InvoiceStatus.php        # Enum
     Coupon.php
-    CouponType.php           # Enum: fixed, percentage
-    CouponDuration.php       # Enum: once, repeating, forever
+    CouponType.php           # Enum
+    CouponDuration.php       # Enum
     Discount.php
-    DiscountStatus.php       # Enum: active, exhausted, cancelled
-    Credit.php               # Calculation utility (moved from Pay)
+    DiscountStatus.php       # Enum
+    Credit.php               # Calculation utility
     Transaction.php
-    TransactionType.php      # Enum: gateway_charge, wallet_topup, etc.
-    TransactionStatus.php    # Enum: pending, succeeded, failed
-    ChangeType.php           # Enum: upgrade, downgrade
+    TransactionType.php      # Enum
+    TransactionStatus.php    # Enum
+    ChangeType.php           # Enum
     Wallet.php
-    Period.php               # Value object: start, end, duration math
+    Period.php               # Value object
     Exception.php
     Render/
         Renderer.php         # Abstract
@@ -479,22 +501,22 @@ templates/
 tests/
     Unit/
         Billing/
-            InMemoryAdapter.php    # Shared in-memory adapter for unit tests
-            BillingTest.php        # Facade tests (subscriptions, invoices, coupons, etc.)
-            SubscriptionTest.php   # Subscription model tests
-            InvoiceTest.php        # Invoice model tests
-            CouponTest.php         # Coupon model tests
-            DiscountTest.php       # Discount model tests
-            TransactionTest.php    # Transaction model tests
-            WalletTest.php         # Wallet model tests
-            CreditTest.php         # Credit calculation tests
-            PeriodTest.php         # Period value object tests
-            EnumTest.php           # Enum behavior tests
+            InMemoryAdapter.php
+            BillingTest.php
+            SubscriptionTest.php
+            InvoiceTest.php
+            CouponTest.php
+            DiscountTest.php
+            TransactionTest.php
+            WalletTest.php
+            CreditTest.php
+            PeriodTest.php
+            EnumTest.php
             Render/
-                HTMLTest.php       # HTML renderer tests
+                HTMLTest.php
     E2E/
         Billing/
-            BillingTest.php        # Full e2e against MariaDB via Docker
+            BillingTest.php
 ```
 
 ---
@@ -503,25 +525,29 @@ tests/
 
 - `declare(strict_types=1);` in every file
 - PHP 8.1+ (enums, union types, named arguments, match expressions)
+- PSR-12 code style (Pint with psr12 preset)
 - PSR-4 autoloading
-- PHPUnit for tests
+- PHPUnit for tests, camelCase test method names
+- PHPStan level max
 - `$db->getAuthorization()->skip()` for internal DB operations
-- `setup()` creates all 6 collections with attributes and indexes
-- PHPDoc on all public methods
-- Value objects for Period, line items
+- JSON encoding for metadata, items, scope fields (stored as VAR_STRING in DB)
+- Value objects for Period, PaymentResponse, line items
 - No application-specific logic — library is generic
 
 ## Design Decisions
 
 1. **Generic library** — no Appwrite concepts. Plans/pricing are app config.
-2. **Denormalized line items** — array on invoice, not separate collection.
-3. **Fixed coupons credit wallet** — immediately, via `coupon_credit` transaction.
-4. **Percentage coupons create discounts** — tracked with cycle countdown, applied during finalization.
-5. **Unified transactions** — single ledger for all money movements. Every transaction has invoiceId.
-6. **Namespace isolation** — `$db->setNamespace()` for multi-tenancy, no name prefixes.
-7. **Subscription state = payment state** — Stripe model, not Lago (decoupled). One field to check.
-8. **Pending upgrades** — don't apply until payment confirms. Stripe's `pending_if_incomplete`.
-9. **Deferred downgrades** — applied at cycle end.
-10. **No pending invoices** — created at cycle end only. Immutable once created.
-11. **Budget enforcement is app-layer** — library tracks, app enforces.
-12. **Invoice/Credit/Discount moved from Pay** — they're billing arithmetic, not gateway concerns.
+2. **Two adapter slots** — persistence (required) and payment (optional). Same pattern as database (adapter + cache).
+3. **Library owns payment orchestration** — `payInvoice()` handles wallet-first deduction, gateway charge, transaction recording, and invoice state. App doesn't manually wire these together.
+4. **3DS/SCA support** — `payInvoice()` returns `PaymentResponse` with `clientSecret` for frontend confirmation. App handles webhook → calls `confirmPayment()`.
+5. **Denormalized line items** — JSON array on invoice, not separate collection.
+6. **Fixed coupons credit wallet** — immediately, via `coupon_credit` transaction.
+7. **Percentage coupons create discounts** — tracked with cycle countdown, applied during finalization.
+8. **Unified transactions** — single ledger for all money movements. Every transaction has invoiceId.
+9. **Event system** — `on()` with named listeners and `BillingEvent` enum, same pattern as `utopia-php/database`.
+10. **Pay is optional** — `utopia-php/pay` in `suggest`, not `require`. Payment adapter is nullable; without it, wallet-only mode works. Use branch `claude/improve-utopia-library-EdGjh` for structured models.
+11. **Subscription state = payment state** — Stripe model. One field to check.
+12. **Pending upgrades** — don't apply until payment confirms.
+13. **Deferred downgrades** — applied at cycle end.
+14. **No pending invoices** — created at cycle end only. Immutable once finalized.
+15. **Budget enforcement is app-layer** — library tracks, app enforces.

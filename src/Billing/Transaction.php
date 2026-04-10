@@ -179,6 +179,24 @@ class Transaction
     }
 
     /**
+     * Get the client secret (for 3DS/SCA frontend confirmation).
+     */
+    public function getClientSecret(): ?string
+    {
+        return $this->document->getAttribute('clientSecret');
+    }
+
+    /**
+     * Set the client secret.
+     */
+    public function setClientSecret(?string $clientSecret): self
+    {
+        $this->document->setAttribute('clientSecret', $clientSecret);
+
+        return $this;
+    }
+
+    /**
      * Get the transaction description.
      */
     public function getDescription(): string

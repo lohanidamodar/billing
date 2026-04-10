@@ -11,23 +11,30 @@ use Utopia\Database\Helpers\ID;
 /**
  * Billing
  *
- * Main facade for the billing library. Wraps the abstract Adapter to provide
- * a high-level API for subscription management, invoicing, coupons/discounts,
- * wallets, and unified transactions.
+ * Main facade for the billing library. Wraps two adapter slots:
+ * - Adapter: persistence (required)
+ * - Payment: payment gateway (optional — null for wallet-only mode)
+ *
+ * Provides a high-level API for subscription management, invoicing,
+ * payment orchestration, coupons/discounts, wallets, and unified transactions.
  *
  * Usage:
  * ```php
- * $billing = new Billing(new DatabaseAdapter($database));
+ * $billing = new Billing(
+ *     new DatabaseAdapter($database),
+ *     new PayAdapter($pay),
+ * );
  * $billing->setup();
  * $subscription = $billing->createSubscription('entity-123', 'plan-pro');
+ * $billing->payInvoice($invoiceId, customerId: 'cus_123');
  * ```
  */
 class Billing
 {
     /**
-     * Registered event listeners.
+     * Registered event listeners (named, like utopia-php/database).
      *
-     * @var array<string, array<callable>>
+     * @var array<string, array<string, callable>>
      */
     protected array $listeners = [];
 
@@ -42,10 +49,12 @@ class Billing
      * Billing constructor.
      *
      * @param  Adapter  $adapter  The persistence adapter
+     * @param  Payment|null  $payment  The payment gateway adapter (null for wallet-only)
      * @param  array<string, mixed>  $options  Options: 'invoiceNumberFormat' => 'INV-{year}-{sequence}'
      */
     public function __construct(
         protected Adapter $adapter,
+        protected ?Payment $payment = null,
         array $options = [],
     ) {
         $this->options = \array_merge([
@@ -71,12 +80,22 @@ class Billing
     /**
      * Register an event listener.
      *
-     * @param  string  $event  The event name (e.g., 'subscription.created')
-     * @param  callable  $callback  The callback to invoke when the event fires
+     * Follows the same pattern as utopia-php/database: named listeners
+     * with a BillingEvent enum. Pass null callback to unregister.
+     *
+     * @param  BillingEvent  $event  The event
+     * @param  string  $name  Unique listener name (for removal)
+     * @param  callable|null  $callback  The callback (null to remove)
      */
-    public function on(string $event, callable $callback): self
+    public function on(BillingEvent $event, string $name, ?callable $callback): self
     {
-        $this->listeners[$event][] = $callback;
+        if ($callback === null) {
+            unset($this->listeners[$event->value][$name]);
+
+            return $this;
+        }
+
+        $this->listeners[$event->value][$name] = $callback;
 
         return $this;
     }
@@ -84,12 +103,12 @@ class Billing
     /**
      * Emit an event to all registered listeners.
      *
-     * @param  string  $event  The event name
+     * @param  BillingEvent  $event  The event
      * @param  mixed  $data  The event payload
      */
-    protected function emit(string $event, mixed $data = null): void
+    protected function emit(BillingEvent $event, mixed $data = null): void
     {
-        foreach ($this->listeners[$event] ?? [] as $callback) {
+        foreach ($this->listeners[$event->value] ?? [] as $callback) {
             $callback($data);
         }
     }
@@ -153,7 +172,7 @@ class Billing
         $doc = $this->adapter->createSubscription(new Document($data));
         $subscription = new Subscription($doc);
 
-        $this->emit('subscription.created', $subscription);
+        $this->emit(BillingEvent::SubscriptionCreated, $subscription);
 
         return $subscription;
     }
@@ -222,7 +241,7 @@ class Billing
         $doc = $this->adapter->updateSubscription($subscriptionId, $subscription->getDocument());
         $subscription = new Subscription($doc);
 
-        $this->emit('subscription.canceled', $subscription);
+        $this->emit(BillingEvent::SubscriptionCanceled, $subscription);
 
         return $subscription;
     }
@@ -255,7 +274,7 @@ class Billing
             $subscription->setCancelAtPeriodEnd(false);
             $doc = $this->adapter->updateSubscription($subscriptionId, $subscription->getDocument());
             $subscription = new Subscription($doc);
-            $this->emit('subscription.canceled', $subscription);
+            $this->emit(BillingEvent::SubscriptionCanceled, $subscription);
 
             return $subscription;
         }
@@ -267,7 +286,7 @@ class Billing
             $subscription->setPendingChangeType(null);
             $subscription->setPendingChangedAt(null);
 
-            $this->emit('subscription.downgraded', $subscription);
+            $this->emit(BillingEvent::SubscriptionDowngraded, $subscription);
         }
 
         // Advance billing period
@@ -283,7 +302,7 @@ class Billing
         $doc = $this->adapter->updateSubscription($subscriptionId, $subscription->getDocument());
         $subscription = new Subscription($doc);
 
-        $this->emit('subscription.renewed', $subscription);
+        $this->emit(BillingEvent::SubscriptionRenewed, $subscription);
 
         return $subscription;
     }
@@ -328,7 +347,7 @@ class Billing
         $doc = $this->adapter->updateSubscription($subscriptionId, $subscription->getDocument());
         $subscription = new Subscription($doc);
 
-        $this->emit('subscription.upgrade_pending', $subscription);
+        $this->emit(BillingEvent::SubscriptionUpgradePending, $subscription);
 
         return $subscription;
     }
@@ -365,7 +384,7 @@ class Billing
         $doc = $this->adapter->updateSubscription($subscriptionId, $subscription->getDocument());
         $subscription = new Subscription($doc);
 
-        $this->emit('subscription.upgraded', $subscription);
+        $this->emit(BillingEvent::SubscriptionUpgraded, $subscription);
 
         return $subscription;
     }
@@ -407,7 +426,7 @@ class Billing
         $doc = $this->adapter->updateSubscription($subscriptionId, $subscription->getDocument());
         $subscription = new Subscription($doc);
 
-        $this->emit('subscription.upgrade_failed', $subscription);
+        $this->emit(BillingEvent::SubscriptionUpgradeFailed, $subscription);
 
         return $subscription;
     }
@@ -444,7 +463,7 @@ class Billing
         $doc = $this->adapter->updateSubscription($subscriptionId, $subscription->getDocument());
         $subscription = new Subscription($doc);
 
-        $this->emit('subscription.downgrade_scheduled', $subscription);
+        $this->emit(BillingEvent::SubscriptionDowngradeScheduled, $subscription);
 
         return $subscription;
     }
@@ -498,7 +517,7 @@ class Billing
         $doc = $this->adapter->updateSubscription($subscriptionId, $subscription->getDocument());
         $subscription = new Subscription($doc);
 
-        $this->emit('subscription.downgraded', $subscription);
+        $this->emit(BillingEvent::SubscriptionDowngraded, $subscription);
 
         return $subscription;
     }
@@ -557,9 +576,9 @@ class Billing
             $subscription->setBudgetLimitReached($reached);
 
             if ($reached && ! $previouslyReached) {
-                $this->emit('subscription.budget_reached', $subscription);
+                $this->emit(BillingEvent::SubscriptionBudgetReached, $subscription);
             } elseif (! $reached && $amount >= $budget * 0.8 && ! $previouslyReached) {
-                $this->emit('subscription.budget_warning', $subscription);
+                $this->emit(BillingEvent::SubscriptionBudgetWarning, $subscription);
             }
         }
 
@@ -596,7 +615,7 @@ class Billing
         $doc = $this->adapter->updateSubscription($subscriptionId, $subscription->getDocument());
         $subscription = new Subscription($doc);
 
-        $this->emit('payment.failed', $subscription);
+        $this->emit(BillingEvent::PaymentFailed, $subscription);
 
         return $subscription;
     }
@@ -648,7 +667,7 @@ class Billing
         $doc = $this->adapter->updateSubscription($subscriptionId, $subscription->getDocument());
         $subscription = new Subscription($doc);
 
-        $this->emit('subscription.suspended', $subscription);
+        $this->emit(BillingEvent::SubscriptionSuspended, $subscription);
 
         return $subscription;
     }
@@ -875,7 +894,7 @@ class Billing
                     if ($newRemaining <= 0) {
                         $discount->setStatus(DiscountStatus::Exhausted);
                         $discount->setExhaustedAt((new DateTime())->format('Y-m-d\TH:i:s.000+00:00'));
-                        $this->emit('discount.exhausted', $discount);
+                        $this->emit(BillingEvent::DiscountExhausted, $discount);
                     }
 
                     $this->adapter->updateDiscount($discount->getId(), $discount->getDocument());
@@ -934,7 +953,7 @@ class Billing
         $doc = $this->adapter->updateInvoice($invoiceId, $invoice->getDocument());
         $invoice = new Invoice($doc);
 
-        $this->emit('invoice.finalized', $invoice);
+        $this->emit(BillingEvent::InvoiceFinalized, $invoice);
 
         return $invoice;
     }
@@ -961,7 +980,7 @@ class Billing
         $doc = $this->adapter->updateInvoice($invoiceId, $invoice->getDocument());
         $invoice = new Invoice($doc);
 
-        $this->emit('invoice.paid', $invoice);
+        $this->emit(BillingEvent::InvoicePaid, $invoice);
 
         return $invoice;
     }
@@ -986,7 +1005,7 @@ class Billing
         $doc = $this->adapter->updateInvoice($invoiceId, $invoice->getDocument());
         $invoice = new Invoice($doc);
 
-        $this->emit('invoice.failed', $invoice);
+        $this->emit(BillingEvent::InvoiceFailed, $invoice);
 
         return $invoice;
     }
@@ -1012,7 +1031,7 @@ class Billing
         $doc = $this->adapter->updateInvoice($invoiceId, $invoice->getDocument());
         $invoice = new Invoice($doc);
 
-        $this->emit('invoice.voided', $invoice);
+        $this->emit(BillingEvent::InvoiceVoided, $invoice);
 
         return $invoice;
     }
@@ -1057,6 +1076,359 @@ class Billing
         $doc = $this->adapter->createInvoice(new Document($data));
 
         return new Invoice($doc);
+    }
+
+    // -------------------------------------------------------------------------
+    // Payment Orchestration
+    // -------------------------------------------------------------------------
+
+    /**
+     * Pay a finalized invoice.
+     *
+     * Orchestrates the full payment flow:
+     * 1. Deducts from wallet first (wallet-first strategy)
+     * 2. Charges remaining via Payment adapter (if available)
+     * 3. Records all transactions
+     * 4. Updates invoice payment breakdown (walletDeducted, gatewayCharged)
+     * 5. Marks invoice as paid (or returns pending status for 3DS/async)
+     *
+     * @param  string  $invoiceId  The finalized invoice ID
+     * @param  string  $customerId  The customer ID at the payment provider
+     * @param  string|null  $paymentMethodId  The payment method to charge (null for default)
+     *
+     * @throws Exception
+     */
+    public function payInvoice(string $invoiceId, string $customerId, ?string $paymentMethodId = null): PaymentResponse
+    {
+        $invoice = $this->getInvoice($invoiceId);
+
+        if ($invoice->getStatus() !== InvoiceStatus::Finalized) {
+            throw new Exception('Only finalized invoices can be paid');
+        }
+
+        $total = $invoice->getTotal();
+        $entityId = $invoice->getEntityId();
+        $currency = $invoice->getCurrency();
+        $walletDeducted = 0.0;
+        $gatewayCharged = 0.0;
+
+        // Step 1: Wallet-first deduction
+        $walletBalance = $this->getWalletBalance($entityId);
+        if ($walletBalance > 0 && $total > 0) {
+            $walletAmount = \min($walletBalance, $total);
+            $this->deductFunds($entityId, $invoiceId, $walletAmount);
+            $walletDeducted = $walletAmount;
+        }
+
+        $remaining = \round($total - $walletDeducted, 2);
+
+        // Step 2: Gateway charge for remaining amount
+        if ($remaining > 0) {
+            if ($this->payment === null) {
+                throw new Exception('Payment adapter required for gateway charges');
+            }
+
+            $paymentResponse = $this->payment->charge(
+                $remaining,
+                $currency,
+                $customerId,
+                $paymentMethodId,
+                ['invoiceId' => $invoiceId],
+            );
+
+            // Record gateway transaction
+            $txStatus = match ($paymentResponse->status) {
+                PaymentResponse::STATUS_SUCCEEDED => TransactionStatus::Succeeded->value,
+                PaymentResponse::STATUS_FAILED => TransactionStatus::Failed->value,
+                default => TransactionStatus::Pending->value,
+            };
+
+            $txData = [
+                '$id' => ID::unique(),
+                '$permissions' => [],
+                'entityId' => $entityId,
+                'invoiceId' => $invoiceId,
+                'type' => TransactionType::GatewayCharge->value,
+                'amount' => $remaining,
+                'status' => $txStatus,
+                'walletId' => null,
+                'providerPaymentId' => $paymentResponse->providerPaymentId,
+                'clientSecret' => $paymentResponse->clientSecret,
+                'description' => 'Gateway charge for invoice ' . $invoice->getNumber(),
+                'metadata' => '{}',
+            ];
+            $this->adapter->createTransaction(new Document($txData));
+            $this->emit(BillingEvent::TransactionCreated, new Transaction(new Document($txData)));
+
+            if ($paymentResponse->isFailed()) {
+                $this->emit(BillingEvent::PaymentFailed, $invoice);
+
+                return $paymentResponse;
+            }
+
+            if ($paymentResponse->isPending()) {
+                // 3DS/SCA or async processing — update invoice breakdown but don't mark paid yet
+                $invoice->setWalletDeducted($walletDeducted);
+                $invoice->setGatewayCharged($remaining);
+                $this->adapter->updateInvoice($invoiceId, $invoice->getDocument());
+
+                $this->emit(BillingEvent::PaymentRequiresAction, $invoice);
+
+                return $paymentResponse;
+            }
+
+            // Succeeded
+            $gatewayCharged = $remaining;
+        }
+
+        // Step 3: Mark invoice paid
+        $invoice->setWalletDeducted($walletDeducted);
+        $invoice->setGatewayCharged($gatewayCharged);
+        $invoice->setStatus(InvoiceStatus::Paid);
+        $invoice->setPaidAt((new DateTime())->format('Y-m-d\TH:i:s.000+00:00'));
+        $this->adapter->updateInvoice($invoiceId, $invoice->getDocument());
+
+        $this->emit(BillingEvent::InvoicePaid, $invoice);
+
+        return new PaymentResponse(
+            status: PaymentResponse::STATUS_SUCCEEDED,
+            providerPaymentId: $paymentResponse->providerPaymentId ?? null,
+        );
+    }
+
+    /**
+     * Confirm a pending payment (webhook: payment succeeded).
+     *
+     * Called by the app when a webhook confirms that a 3DS/SCA or async
+     * payment has succeeded. Marks the gateway transaction as succeeded
+     * and the invoice as paid.
+     *
+     * @param  string  $invoiceId  The invoice ID
+     * @param  string  $providerPaymentId  The provider's payment ID
+     *
+     * @throws Exception
+     */
+    public function confirmPayment(string $invoiceId, string $providerPaymentId): Invoice
+    {
+        $invoice = $this->getInvoice($invoiceId);
+
+        if ($invoice->getStatus() !== InvoiceStatus::Finalized) {
+            throw new Exception('Invoice is not awaiting payment confirmation');
+        }
+
+        // Find and update the pending gateway transaction
+        $transactions = $this->adapter->listInvoiceTransactions($invoiceId);
+        foreach ($transactions as $txDoc) {
+            if ($txDoc->getAttribute('providerPaymentId') === $providerPaymentId
+                && $txDoc->getAttribute('status') === TransactionStatus::Pending->value) {
+                $txDoc->setAttribute('status', TransactionStatus::Succeeded->value);
+                $this->adapter->updateTransaction($txDoc->getId(), $txDoc);
+            }
+        }
+
+        // Mark invoice paid
+        $invoice->setStatus(InvoiceStatus::Paid);
+        $invoice->setPaidAt((new DateTime())->format('Y-m-d\TH:i:s.000+00:00'));
+        $doc = $this->adapter->updateInvoice($invoiceId, $invoice->getDocument());
+        $invoice = new Invoice($doc);
+
+        $this->emit(BillingEvent::InvoicePaid, $invoice);
+
+        return $invoice;
+    }
+
+    /**
+     * Record a failed payment (webhook: payment failed).
+     *
+     * Called by the app when a webhook reports that a 3DS/SCA or async
+     * payment has failed. Marks the gateway transaction as failed.
+     *
+     * @param  string  $invoiceId  The invoice ID
+     * @param  string  $providerPaymentId  The provider's payment ID
+     *
+     * @throws Exception
+     */
+    public function failPayment(string $invoiceId, string $providerPaymentId): Invoice
+    {
+        $invoice = $this->getInvoice($invoiceId);
+
+        // Find and update the pending gateway transaction
+        $transactions = $this->adapter->listInvoiceTransactions($invoiceId);
+        foreach ($transactions as $txDoc) {
+            if ($txDoc->getAttribute('providerPaymentId') === $providerPaymentId
+                && $txDoc->getAttribute('status') === TransactionStatus::Pending->value) {
+                $txDoc->setAttribute('status', TransactionStatus::Failed->value);
+                $this->adapter->updateTransaction($txDoc->getId(), $txDoc);
+            }
+        }
+
+        $invoice->setStatus(InvoiceStatus::Failed);
+        $doc = $this->adapter->updateInvoice($invoiceId, $invoice->getDocument());
+        $invoice = new Invoice($doc);
+
+        $this->emit(BillingEvent::InvoiceFailed, $invoice);
+        $this->emit(BillingEvent::PaymentFailed, $invoice);
+
+        return $invoice;
+    }
+
+    /**
+     * Retry payment for a failed invoice.
+     *
+     * Re-attempts the gateway charge. The wallet deduction from the original
+     * attempt is preserved.
+     *
+     * @param  string  $invoiceId  The failed invoice ID
+     * @param  string  $customerId  The customer ID at the payment provider
+     * @param  string|null  $paymentMethodId  The payment method to charge
+     *
+     * @throws Exception
+     */
+    public function retryPayment(string $invoiceId, string $customerId, ?string $paymentMethodId = null): PaymentResponse
+    {
+        $invoice = $this->getInvoice($invoiceId);
+
+        if ($invoice->getStatus() !== InvoiceStatus::Failed) {
+            throw new Exception('Only failed invoices can be retried');
+        }
+
+        if ($this->payment === null) {
+            throw new Exception('Payment adapter required for retry');
+        }
+
+        $remaining = \round($invoice->getTotal() - $invoice->getWalletDeducted(), 2);
+
+        if ($remaining <= 0) {
+            // Fully covered by wallet — just mark paid
+            $invoice->setStatus(InvoiceStatus::Paid);
+            $invoice->setPaidAt((new DateTime())->format('Y-m-d\TH:i:s.000+00:00'));
+            $doc = $this->adapter->updateInvoice($invoiceId, $invoice->getDocument());
+            $this->emit(BillingEvent::InvoicePaid, new Invoice($doc));
+
+            return new PaymentResponse(status: PaymentResponse::STATUS_SUCCEEDED);
+        }
+
+        // Reset to finalized for retry
+        $invoice->setStatus(InvoiceStatus::Finalized);
+        $this->adapter->updateInvoice($invoiceId, $invoice->getDocument());
+
+        $paymentResponse = $this->payment->charge(
+            $remaining,
+            $invoice->getCurrency(),
+            $customerId,
+            $paymentMethodId,
+            ['invoiceId' => $invoiceId, 'retry' => true],
+        );
+
+        $txStatus = match ($paymentResponse->status) {
+            PaymentResponse::STATUS_SUCCEEDED => TransactionStatus::Succeeded->value,
+            PaymentResponse::STATUS_FAILED => TransactionStatus::Failed->value,
+            default => TransactionStatus::Pending->value,
+        };
+
+        $txData = [
+            '$id' => ID::unique(),
+            '$permissions' => [],
+            'entityId' => $invoice->getEntityId(),
+            'invoiceId' => $invoiceId,
+            'type' => TransactionType::GatewayCharge->value,
+            'amount' => $remaining,
+            'status' => $txStatus,
+            'walletId' => null,
+            'providerPaymentId' => $paymentResponse->providerPaymentId,
+            'clientSecret' => $paymentResponse->clientSecret,
+            'description' => 'Retry charge for invoice ' . $invoice->getNumber(),
+            'metadata' => '{}',
+        ];
+        $this->adapter->createTransaction(new Document($txData));
+        $this->emit(BillingEvent::TransactionCreated, new Transaction(new Document($txData)));
+
+        if ($paymentResponse->isSucceeded()) {
+            $invoice->setGatewayCharged($remaining);
+            $invoice->setStatus(InvoiceStatus::Paid);
+            $invoice->setPaidAt((new DateTime())->format('Y-m-d\TH:i:s.000+00:00'));
+            $doc = $this->adapter->updateInvoice($invoiceId, $invoice->getDocument());
+            $this->emit(BillingEvent::InvoicePaid, new Invoice($doc));
+        } elseif ($paymentResponse->isFailed()) {
+            $invoice->setStatus(InvoiceStatus::Failed);
+            $this->adapter->updateInvoice($invoiceId, $invoice->getDocument());
+            $this->emit(BillingEvent::PaymentFailed, $invoice);
+        }
+
+        return $paymentResponse;
+    }
+
+    /**
+     * Refund a paid invoice.
+     *
+     * Orchestrates the full refund flow:
+     * 1. Refunds gateway charge (if any) via Payment adapter
+     * 2. Credits wallet deduction back (if any)
+     * 3. Creates a credit note invoice
+     *
+     * @param  string  $invoiceId  The paid invoice ID
+     * @param  float|null  $amount  Amount to refund (null for full refund)
+     * @param  string|null  $reason  Reason for the refund
+     *
+     * @throws Exception
+     */
+    public function refundInvoice(string $invoiceId, ?float $amount = null, ?string $reason = null): Invoice
+    {
+        $invoice = $this->getInvoice($invoiceId);
+
+        if ($invoice->getStatus() !== InvoiceStatus::Paid) {
+            throw new Exception('Only paid invoices can be refunded');
+        }
+
+        $refundAmount = $amount ?? $invoice->getTotal();
+        $gatewayRefund = \min($refundAmount, $invoice->getGatewayCharged());
+        $walletRefund = \min($refundAmount - $gatewayRefund, $invoice->getWalletDeducted());
+        $entityId = $invoice->getEntityId();
+
+        // Step 1: Refund gateway
+        if ($gatewayRefund > 0) {
+            // Find the gateway transaction
+            $transactions = $this->adapter->listInvoiceTransactions($invoiceId);
+            $providerPaymentId = null;
+            foreach ($transactions as $txDoc) {
+                if ($txDoc->getAttribute('type') === TransactionType::GatewayCharge->value
+                    && $txDoc->getAttribute('status') === TransactionStatus::Succeeded->value) {
+                    $providerPaymentId = (string) $txDoc->getAttribute('providerPaymentId');
+
+                    break;
+                }
+            }
+
+            if ($providerPaymentId !== null && $this->payment !== null) {
+                $this->payment->refund($providerPaymentId, $gatewayRefund, $reason);
+            }
+
+            $this->createTransaction(
+                $entityId,
+                $invoiceId,
+                TransactionType::GatewayRefund->value,
+                $gatewayRefund,
+                null,
+                $providerPaymentId,
+                'Gateway refund for invoice ' . $invoice->getNumber(),
+            );
+        }
+
+        // Step 2: Refund to wallet
+        if ($walletRefund > 0) {
+            $this->refundToWallet($entityId, $invoiceId, $walletRefund);
+        }
+
+        // Step 3: Create credit note
+        $creditNote = $this->createCreditNote($invoiceId, [
+            [
+                'type' => Invoice::ITEM_TYPE_REFUND,
+                'description' => $reason ?? 'Refund',
+                'amount' => -$refundAmount,
+            ],
+        ]);
+
+        return $creditNote;
     }
 
     // -------------------------------------------------------------------------
@@ -1217,8 +1589,8 @@ class Billing
         $coupon->setTimesRedeemed($coupon->getTimesRedeemed() + 1);
         $this->adapter->updateCoupon($coupon->getId(), $coupon->getDocument());
 
-        $this->emit('discount.applied', $discount);
-        $this->emit('coupon.redeemed', $coupon);
+        $this->emit(BillingEvent::DiscountApplied, $discount);
+        $this->emit(BillingEvent::CouponRedeemed, $coupon);
 
         return $discount;
     }
@@ -1275,7 +1647,7 @@ class Billing
         $doc = $this->adapter->updateDiscount($id, $discount->getDocument());
         $discount = new Discount($doc);
 
-        $this->emit('discount.cancelled', $discount);
+        $this->emit(BillingEvent::DiscountCancelled, $discount);
 
         return $discount;
     }
@@ -1359,7 +1731,7 @@ class Billing
             $wallet->getId(),
         );
 
-        $this->emit('wallet.funded', $wallet);
+        $this->emit(BillingEvent::WalletFunded, $wallet);
 
         return $transaction;
     }
@@ -1397,7 +1769,7 @@ class Billing
             $wallet->getId(),
         );
 
-        $this->emit('wallet.deducted', $wallet);
+        $this->emit(BillingEvent::WalletDeducted, $wallet);
 
         return $transaction;
     }
@@ -1476,7 +1848,7 @@ class Billing
         $doc = $this->adapter->createTransaction(new Document($data));
         $transaction = new Transaction($doc);
 
-        $this->emit('transaction.created', $transaction);
+        $this->emit(BillingEvent::TransactionCreated, $transaction);
 
         return $transaction;
     }

@@ -3,6 +3,10 @@ parameters:
     paths:
         - src
         - tests
+    excludePaths:
+        # Pay adapter depends on utopia-php/pay (suggested, not required).
+        # Uses structured models from branch claude/improve-utopia-library-EdGjh.
+        - src/Billing/Payment/Pay.php
     ignoreErrors:
         # utopia-php/database Document::getAttribute() returns mixed by design.
         # All model getters apply appropriate casts. This is the standard

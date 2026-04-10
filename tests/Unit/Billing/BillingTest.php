@@ -7,6 +7,7 @@ namespace Utopia\Tests\Unit\Billing;
 use DateTime;
 use PHPUnit\Framework\TestCase;
 use Utopia\Billing\Billing;
+use Utopia\Billing\BillingEvent;
 use Utopia\Billing\ChangeType;
 use Utopia\Billing\Coupon;
 use Utopia\Billing\CouponDuration;
@@ -287,7 +288,7 @@ class BillingTest extends TestCase
     public function testBudgetReachedEvent(): void
     {
         $eventFired = false;
-        $this->billing->on('subscription.budget_reached', function () use (&$eventFired) {
+        $this->billing->on(BillingEvent::SubscriptionBudgetReached, 'test', function () use (&$eventFired) {
             $eventFired = true;
         });
 
@@ -901,13 +902,13 @@ class BillingTest extends TestCase
     {
         $events = [];
 
-        $this->billing->on('subscription.created', function ($sub) use (&$events) {
+        $this->billing->on(BillingEvent::SubscriptionCreated, 'test', function ($sub) use (&$events) {
             $events[] = 'subscription.created';
         });
-        $this->billing->on('invoice.finalized', function ($inv) use (&$events) {
+        $this->billing->on(BillingEvent::InvoiceFinalized, 'test', function ($inv) use (&$events) {
             $events[] = 'invoice.finalized';
         });
-        $this->billing->on('invoice.paid', function ($inv) use (&$events) {
+        $this->billing->on(BillingEvent::InvoicePaid, 'test', function ($inv) use (&$events) {
             $events[] = 'invoice.paid';
         });
 
@@ -925,10 +926,10 @@ class BillingTest extends TestCase
     {
         $count = 0;
 
-        $this->billing->on('subscription.created', function () use (&$count) {
+        $this->billing->on(BillingEvent::SubscriptionCreated, 'listener-1', function () use (&$count) {
             $count++;
         });
-        $this->billing->on('subscription.created', function () use (&$count) {
+        $this->billing->on(BillingEvent::SubscriptionCreated, 'listener-2', function () use (&$count) {
             $count++;
         });
 
@@ -1197,7 +1198,7 @@ class BillingTest extends TestCase
     public function testDiscountExhaustedEvent(): void
     {
         $exhaustedFired = false;
-        $this->billing->on('discount.exhausted', function () use (&$exhaustedFired) {
+        $this->billing->on(BillingEvent::DiscountExhausted, 'test', function () use (&$exhaustedFired) {
             $exhaustedFired = true;
         });
 
@@ -1217,7 +1218,7 @@ class BillingTest extends TestCase
     public function testWalletFundedEvent(): void
     {
         $eventFired = false;
-        $this->billing->on('wallet.funded', function () use (&$eventFired) {
+        $this->billing->on(BillingEvent::WalletFunded, 'test', function () use (&$eventFired) {
             $eventFired = true;
         });
 
@@ -1230,7 +1231,7 @@ class BillingTest extends TestCase
     public function testWalletDeductedEvent(): void
     {
         $eventFired = false;
-        $this->billing->on('wallet.deducted', function () use (&$eventFired) {
+        $this->billing->on(BillingEvent::WalletDeducted, 'test', function () use (&$eventFired) {
             $eventFired = true;
         });
 
@@ -1245,7 +1246,7 @@ class BillingTest extends TestCase
     public function testSubscriptionSuspendedEvent(): void
     {
         $eventFired = false;
-        $this->billing->on('subscription.suspended', function () use (&$eventFired) {
+        $this->billing->on(BillingEvent::SubscriptionSuspended, 'test', function () use (&$eventFired) {
             $eventFired = true;
         });
 
@@ -1259,7 +1260,7 @@ class BillingTest extends TestCase
     public function testTransactionCreatedEvent(): void
     {
         $eventFired = false;
-        $this->billing->on('transaction.created', function () use (&$eventFired) {
+        $this->billing->on(BillingEvent::TransactionCreated, 'test', function () use (&$eventFired) {
             $eventFired = true;
         });
 
@@ -1272,16 +1273,16 @@ class BillingTest extends TestCase
     public function testUpgradeDowngradeEvents(): void
     {
         $events = [];
-        $this->billing->on('subscription.upgrade_pending', function () use (&$events) {
+        $this->billing->on(BillingEvent::SubscriptionUpgradePending, 'test', function () use (&$events) {
             $events[] = 'upgrade_pending';
         });
-        $this->billing->on('subscription.upgraded', function () use (&$events) {
+        $this->billing->on(BillingEvent::SubscriptionUpgraded, 'test', function () use (&$events) {
             $events[] = 'upgraded';
         });
-        $this->billing->on('subscription.downgrade_scheduled', function () use (&$events) {
+        $this->billing->on(BillingEvent::SubscriptionDowngradeScheduled, 'test', function () use (&$events) {
             $events[] = 'downgrade_scheduled';
         });
-        $this->billing->on('subscription.downgraded', function () use (&$events) {
+        $this->billing->on(BillingEvent::SubscriptionDowngraded, 'test', function () use (&$events) {
             $events[] = 'downgraded';
         });
 
@@ -1517,5 +1518,307 @@ class BillingTest extends TestCase
     {
         $this->expectException(Exception::class);
         $this->billing->getDiscount('nonexistent');
+    }
+
+    // =========================================================================
+    // Payment Orchestration
+    // =========================================================================
+
+    public function testPayInvoiceWithManualAdapter(): void
+    {
+        $billing = new Billing(new InMemoryAdapter(), new \Utopia\Billing\Payment\Manual());
+        $billing->setup();
+
+        $invoice = $billing->createInvoice('entity-pay', 'subscription', null, [
+            ['type' => 'plan', 'description' => 'Pro Plan', 'amount' => 50.00],
+        ]);
+        $billing->finalizeInvoice($invoice->getId());
+
+        $response = $billing->payInvoice($invoice->getId(), 'cus_123');
+
+        $this->assertTrue($response->isSucceeded());
+        $this->assertNotNull($response->providerPaymentId);
+
+        $paid = $billing->getInvoice($invoice->getId());
+        $this->assertEquals(InvoiceStatus::Paid, $paid->getStatus());
+        $this->assertNotNull($paid->getPaidAt());
+        $this->assertEquals(50.0, $paid->getGatewayCharged());
+    }
+
+    public function testPayInvoiceWalletFirst(): void
+    {
+        $billing = new Billing(new InMemoryAdapter(), new \Utopia\Billing\Payment\Manual());
+        $billing->setup();
+
+        // Add wallet funds
+        $topup = $billing->createInvoice('entity-wf', 'wallet_topup');
+        $billing->addFunds('entity-wf', $topup->getId(), 30.0);
+
+        // Create $50 invoice — wallet covers $30, gateway covers $20
+        $invoice = $billing->createInvoice('entity-wf', 'subscription', null, [
+            ['type' => 'plan', 'description' => 'Plan', 'amount' => 50.00],
+        ]);
+        $billing->finalizeInvoice($invoice->getId());
+
+        $response = $billing->payInvoice($invoice->getId(), 'cus_123');
+
+        $this->assertTrue($response->isSucceeded());
+        $paid = $billing->getInvoice($invoice->getId());
+        $this->assertEquals(30.0, $paid->getWalletDeducted());
+        $this->assertEquals(20.0, $paid->getGatewayCharged());
+        $this->assertEquals(0.0, $billing->getWalletBalance('entity-wf'));
+    }
+
+    public function testPayInvoiceFullyByWallet(): void
+    {
+        $billing = new Billing(new InMemoryAdapter(), new \Utopia\Billing\Payment\Manual());
+        $billing->setup();
+
+        $topup = $billing->createInvoice('entity-fw', 'wallet_topup');
+        $billing->addFunds('entity-fw', $topup->getId(), 100.0);
+
+        $invoice = $billing->createInvoice('entity-fw', 'subscription', null, [
+            ['type' => 'plan', 'description' => 'Plan', 'amount' => 25.00],
+        ]);
+        $billing->finalizeInvoice($invoice->getId());
+
+        $response = $billing->payInvoice($invoice->getId(), 'cus_123');
+
+        $this->assertTrue($response->isSucceeded());
+        $paid = $billing->getInvoice($invoice->getId());
+        $this->assertEquals(25.0, $paid->getWalletDeducted());
+        $this->assertEquals(0.0, $paid->getGatewayCharged());
+        $this->assertEquals(75.0, $billing->getWalletBalance('entity-fw'));
+    }
+
+    public function testPayInvoiceNoPaymentAdapterThrows(): void
+    {
+        // No payment adapter — wallet-only mode
+        $billing = new Billing(new InMemoryAdapter());
+        $billing->setup();
+
+        $invoice = $billing->createInvoice('entity-np', 'subscription', null, [
+            ['type' => 'plan', 'description' => 'Plan', 'amount' => 50.00],
+        ]);
+        $billing->finalizeInvoice($invoice->getId());
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('Payment adapter required');
+        $billing->payInvoice($invoice->getId(), 'cus_123');
+    }
+
+    public function testPayInvoiceNoAdapterFullyWallet(): void
+    {
+        // No payment adapter but wallet covers everything
+        $billing = new Billing(new InMemoryAdapter());
+        $billing->setup();
+
+        $topup = $billing->createInvoice('entity-nw', 'wallet_topup');
+        $billing->addFunds('entity-nw', $topup->getId(), 100.0);
+
+        $invoice = $billing->createInvoice('entity-nw', 'subscription', null, [
+            ['type' => 'plan', 'description' => 'Plan', 'amount' => 50.00],
+        ]);
+        $billing->finalizeInvoice($invoice->getId());
+
+        $response = $billing->payInvoice($invoice->getId(), 'cus_123');
+        $this->assertTrue($response->isSucceeded());
+    }
+
+    public function testPayInvoiceOnlyFinalizedAllowed(): void
+    {
+        $billing = new Billing(new InMemoryAdapter(), new \Utopia\Billing\Payment\Manual());
+        $billing->setup();
+
+        $invoice = $billing->createInvoice('entity-draft', 'subscription', null, [
+            ['type' => 'plan', 'description' => 'Plan', 'amount' => 10.00],
+        ]);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('Only finalized');
+        $billing->payInvoice($invoice->getId(), 'cus_123');
+    }
+
+    public function testConfirmPayment(): void
+    {
+        $billing = new Billing(new InMemoryAdapter(), new \Utopia\Billing\Payment\Manual());
+        $billing->setup();
+
+        $invoice = $billing->createInvoice('entity-cp', 'subscription', null, [
+            ['type' => 'plan', 'description' => 'Plan', 'amount' => 50.00],
+        ]);
+        $billing->finalizeInvoice($invoice->getId());
+
+        // Simulate a pending payment by paying and getting the provider ID
+        $response = $billing->payInvoice($invoice->getId(), 'cus_123');
+        // Manual adapter always succeeds — but we can test confirmPayment on a new invoice
+
+        // Create another invoice, finalize, and manually simulate 3DS scenario
+        $inv2 = $billing->createInvoice('entity-cp', 'subscription', null, [
+            ['type' => 'plan', 'description' => 'Plan 2', 'amount' => 30.00],
+        ]);
+        $billing->finalizeInvoice($inv2->getId());
+
+        // Directly call confirmPayment (simulating webhook after 3DS)
+        $confirmed = $billing->confirmPayment($inv2->getId(), 'pi_test_123');
+        $this->assertEquals(InvoiceStatus::Paid, $confirmed->getStatus());
+        $this->assertNotNull($confirmed->getPaidAt());
+    }
+
+    public function testFailPayment(): void
+    {
+        $billing = new Billing(new InMemoryAdapter(), new \Utopia\Billing\Payment\Manual());
+        $billing->setup();
+
+        $invoice = $billing->createInvoice('entity-fp', 'subscription', null, [
+            ['type' => 'plan', 'description' => 'Plan', 'amount' => 50.00],
+        ]);
+        $billing->finalizeInvoice($invoice->getId());
+
+        $failed = $billing->failPayment($invoice->getId(), 'pi_failed_123');
+        $this->assertEquals(InvoiceStatus::Failed, $failed->getStatus());
+    }
+
+    public function testRetryPayment(): void
+    {
+        $billing = new Billing(new InMemoryAdapter(), new \Utopia\Billing\Payment\Manual());
+        $billing->setup();
+
+        $invoice = $billing->createInvoice('entity-rp', 'subscription', null, [
+            ['type' => 'plan', 'description' => 'Plan', 'amount' => 50.00],
+        ]);
+        $billing->finalizeInvoice($invoice->getId());
+
+        // Fail first
+        $billing->failPayment($invoice->getId(), 'pi_fail');
+
+        // Retry — Manual adapter always succeeds
+        $response = $billing->retryPayment($invoice->getId(), 'cus_123');
+        $this->assertTrue($response->isSucceeded());
+
+        $paid = $billing->getInvoice($invoice->getId());
+        $this->assertEquals(InvoiceStatus::Paid, $paid->getStatus());
+    }
+
+    public function testRetryPaymentOnlyFailedAllowed(): void
+    {
+        $billing = new Billing(new InMemoryAdapter(), new \Utopia\Billing\Payment\Manual());
+        $billing->setup();
+
+        $invoice = $billing->createInvoice('entity-ro', 'subscription', null, [
+            ['type' => 'plan', 'description' => 'Plan', 'amount' => 50.00],
+        ]);
+        $billing->finalizeInvoice($invoice->getId());
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('Only failed');
+        $billing->retryPayment($invoice->getId(), 'cus_123');
+    }
+
+    public function testRefundInvoice(): void
+    {
+        $billing = new Billing(new InMemoryAdapter(), new \Utopia\Billing\Payment\Manual());
+        $billing->setup();
+
+        $invoice = $billing->createInvoice('entity-rf', 'subscription', null, [
+            ['type' => 'plan', 'description' => 'Plan', 'amount' => 50.00],
+        ]);
+        $billing->finalizeInvoice($invoice->getId());
+        $billing->payInvoice($invoice->getId(), 'cus_123');
+
+        $creditNote = $billing->refundInvoice($invoice->getId());
+
+        $this->assertTrue($creditNote->isCreditNote());
+        $this->assertEquals($invoice->getId(), $creditNote->getReferenceInvoiceId());
+    }
+
+    public function testRefundInvoicePartial(): void
+    {
+        $billing = new Billing(new InMemoryAdapter(), new \Utopia\Billing\Payment\Manual());
+        $billing->setup();
+
+        $invoice = $billing->createInvoice('entity-rp2', 'subscription', null, [
+            ['type' => 'plan', 'description' => 'Plan', 'amount' => 100.00],
+        ]);
+        $billing->finalizeInvoice($invoice->getId());
+        $billing->payInvoice($invoice->getId(), 'cus_123');
+
+        $creditNote = $billing->refundInvoice($invoice->getId(), 30.0, 'Partial refund');
+        $this->assertTrue($creditNote->isCreditNote());
+    }
+
+    public function testRefundInvoiceOnlyPaidAllowed(): void
+    {
+        $billing = new Billing(new InMemoryAdapter(), new \Utopia\Billing\Payment\Manual());
+        $billing->setup();
+
+        $invoice = $billing->createInvoice('entity-rn', 'subscription', null, [
+            ['type' => 'plan', 'description' => 'Plan', 'amount' => 50.00],
+        ]);
+        $billing->finalizeInvoice($invoice->getId());
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('Only paid');
+        $billing->refundInvoice($invoice->getId());
+    }
+
+    public function testRefundInvoiceWithWalletDeduction(): void
+    {
+        $billing = new Billing(new InMemoryAdapter(), new \Utopia\Billing\Payment\Manual());
+        $billing->setup();
+
+        // Fund wallet
+        $topup = $billing->createInvoice('entity-rw', 'wallet_topup');
+        $billing->addFunds('entity-rw', $topup->getId(), 30.0);
+
+        // Pay with wallet-first
+        $invoice = $billing->createInvoice('entity-rw', 'subscription', null, [
+            ['type' => 'plan', 'description' => 'Plan', 'amount' => 50.00],
+        ]);
+        $billing->finalizeInvoice($invoice->getId());
+        $billing->payInvoice($invoice->getId(), 'cus_123');
+
+        $this->assertEquals(0.0, $billing->getWalletBalance('entity-rw'));
+
+        // Full refund — should refund both gateway and wallet portions
+        $billing->refundInvoice($invoice->getId());
+
+        // Wallet should have the $30 back
+        $this->assertEquals(30.0, $billing->getWalletBalance('entity-rw'));
+    }
+
+    public function testPaymentResponseHelpers(): void
+    {
+        $succeeded = new \Utopia\Billing\PaymentResponse(status: 'succeeded', providerPaymentId: 'pi_1');
+        $this->assertTrue($succeeded->isSucceeded());
+        $this->assertFalse($succeeded->isPending());
+        $this->assertFalse($succeeded->isFailed());
+
+        $action = new \Utopia\Billing\PaymentResponse(status: 'requires_action', clientSecret: 'pi_secret');
+        $this->assertTrue($action->requiresAction());
+        $this->assertTrue($action->isPending());
+        $this->assertFalse($action->isSucceeded());
+
+        $processing = new \Utopia\Billing\PaymentResponse(status: 'processing');
+        $this->assertTrue($processing->isProcessing());
+        $this->assertTrue($processing->isPending());
+
+        $failed = new \Utopia\Billing\PaymentResponse(status: 'failed', errorCode: 'card_declined', errorMessage: 'Declined');
+        $this->assertTrue($failed->isFailed());
+        $this->assertFalse($failed->isPending());
+    }
+
+    public function testManualAdapterName(): void
+    {
+        $manual = new \Utopia\Billing\Payment\Manual();
+        $this->assertEquals('manual', $manual->getName());
+    }
+
+    public function testManualAdapterRefund(): void
+    {
+        $manual = new \Utopia\Billing\Payment\Manual();
+        $response = $manual->refund('pi_123', 10.0, 'test');
+        $this->assertTrue($response->isSucceeded());
+        $this->assertEquals('pi_123', $response->providerPaymentId);
     }
 }

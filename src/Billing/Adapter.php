@@ -369,6 +369,17 @@ abstract class Adapter
     abstract public function listTransactions(string $entityId, array $filters = [], int $limit = 25, int $offset = 0): array;
 
     /**
+     * Update an existing transaction document.
+     *
+     * @param  string  $id  The transaction ID
+     * @param  Document  $transaction  The updated transaction document
+     * @return Document The updated transaction
+     *
+     * @throws Exception If transaction not found
+     */
+    abstract public function updateTransaction(string $id, Document $transaction): Document;
+
+    /**
      * List all transactions associated with a specific invoice.
      *
      * @param  string  $invoiceId  The invoice ID

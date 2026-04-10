@@ -289,6 +289,13 @@ class InMemoryAdapter extends Adapter
         return $this->transactions[$id] ?? new Document();
     }
 
+    public function updateTransaction(string $id, Document $transaction): Document
+    {
+        $this->transactions[$id] = $transaction;
+
+        return $transaction;
+    }
+
     /**
      * @param  array<string, mixed>  $filters
      */
