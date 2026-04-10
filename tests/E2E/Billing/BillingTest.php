@@ -110,7 +110,7 @@ class BillingTest extends TestCase
     /**
      * @depends test_setup
      */
-    public function test_full_subscription_lifecycle(): void
+    public function test_subscription_lifecycle(): void
     {
         $billing = self::billing();
 
@@ -169,7 +169,7 @@ class BillingTest extends TestCase
     /**
      * @depends test_setup
      */
-    public function test_full_invoice_flow(): void
+    public function test_invoice_finalization(): void
     {
         $billing = self::billing();
 
@@ -264,7 +264,7 @@ class BillingTest extends TestCase
     /**
      * @depends test_setup
      */
-    public function test_wallet_and_transactions(): void
+    public function test_wallet_transactions(): void
     {
         $billing = self::billing();
 
@@ -326,7 +326,7 @@ class BillingTest extends TestCase
     /**
      * @depends test_setup
      */
-    public function test_dunning_and_budget(): void
+    public function test_dunning_budget(): void
     {
         $billing = self::billing();
 
@@ -451,7 +451,7 @@ class BillingTest extends TestCase
     /**
      * @depends test_setup
      */
-    public function test_invoice_void_and_credit_note(): void
+    public function test_invoice_void(): void
     {
         $billing = self::billing();
 
@@ -479,7 +479,7 @@ class BillingTest extends TestCase
     /**
      * @depends test_setup
      */
-    public function test_period_and_proration(): void
+    public function test_period_proration(): void
     {
         $billing = self::billing();
 
@@ -501,7 +501,7 @@ class BillingTest extends TestCase
     /**
      * @depends test_setup
      */
-    public function test_events_in_e2_e_flow(): void
+    public function test_events(): void
     {
         $billing = self::billing();
         $events = [];
