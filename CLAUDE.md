@@ -477,8 +477,24 @@ src/Billing/
 templates/
     invoice.phtml            # Default invoice template
 tests/
-    Billing/
-        BillingTest.php      # In-memory adapter + full facade tests
+    Unit/
+        Billing/
+            InMemoryAdapter.php    # Shared in-memory adapter for unit tests
+            BillingTest.php        # Facade tests (subscriptions, invoices, coupons, etc.)
+            SubscriptionTest.php   # Subscription model tests
+            InvoiceTest.php        # Invoice model tests
+            CouponTest.php         # Coupon model tests
+            DiscountTest.php       # Discount model tests
+            TransactionTest.php    # Transaction model tests
+            WalletTest.php         # Wallet model tests
+            CreditTest.php         # Credit calculation tests
+            PeriodTest.php         # Period value object tests
+            EnumTest.php           # Enum behavior tests
+            Render/
+                HTMLTest.php       # HTML renderer tests
+    E2E/
+        Billing/
+            BillingTest.php        # Full e2e against MariaDB via Docker
 ```
 
 ---

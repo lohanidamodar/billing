@@ -7,11 +7,10 @@
          verbose="true">
     <testsuites>
         <testsuite name="Unit">
-            <directory>tests</directory>
-            <exclude>tests/Billing/E2ETest.php</exclude>
+            <directory>tests/Unit</directory>
         </testsuite>
         <testsuite name="E2E">
-            <file>tests/Billing/E2ETest.php</file>
+            <directory>tests/E2E</directory>
         </testsuite>
     </testsuites>
     <groups>

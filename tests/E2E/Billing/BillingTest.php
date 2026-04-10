@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Utopia\Tests\Billing;
+namespace Utopia\Tests\E2E\Billing;
 
 use DateTime;
 use PDO;
@@ -30,7 +30,7 @@ use Utopia\Database\Database;
  *
  * @group e2e
  */
-class E2ETest extends TestCase
+class BillingTest extends TestCase
 {
     private static ?Billing $billing = null;
 

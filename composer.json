@@ -26,7 +26,8 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Utopia\\Tests\\": "tests"
+            "Utopia\\Tests\\Unit\\": "tests/Unit",
+            "Utopia\\Tests\\E2E\\": "tests/E2E"
         }
     },
     "require": {
