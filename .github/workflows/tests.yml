@@ -11,7 +11,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: '8.4'
           extensions: mongodb-2.1.0
           coverage: none
       - name: Install dependencies
@@ -25,7 +25,7 @@ jobs:
     needs: lint
     strategy:
       matrix:
-        php: ['8.0', '8.1', '8.2', '8.3']
+        php: ['8.4']
     services:
       mariadb:
         image: mariadb:10.7
