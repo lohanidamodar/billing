@@ -1,0 +1,661 @@
+<?php
+
+/**
+ * Default Invoice Template
+ *
+ * Variables available:
+ * @var \Utopia\Billing\Invoice $invoice  The invoice object
+ * @var array<int, array<string, mixed>> $items  Line items from the invoice
+ * @var array<string, mixed> $entity  Customer/entity info (name, address, email, etc.)
+ * @var array<string, mixed> $issuer  Issuer/company info (name, address, taxId, etc.)
+ */
+
+$currency = $invoice->getCurrency() ?: 'USD';
+
+/**
+ * Format a monetary amount to 2 decimal places.
+ */
+$formatAmount = function (float $amount) use ($currency): string {
+    $symbol = match (\strtoupper($currency)) {
+        'USD' => '$',
+        'EUR' => "\xe2\x82\xac",
+        'GBP' => "\xc2\xa3",
+        'JPY' => "\xc2\xa5",
+        'CAD' => 'CA$',
+        'AUD' => 'A$',
+        'CHF' => 'CHF ',
+        'CNY' => "\xc2\xa5",
+        'INR' => "\xe2\x82\xb9",
+        'BRL' => 'R$',
+        default => \strtoupper($currency) . ' ',
+    };
+
+    return $symbol . \number_format(\abs($amount), 2);
+};
+
+/**
+ * Format a date string for display.
+ */
+$formatDate = function (?string $date): string {
+    if ($date === null || $date === '') {
+        return "\xe2\x80\x94";
+    }
+
+    try {
+        return (new \DateTime($date))->format('M j, Y');
+    } catch (\Throwable $e) {
+        return $date;
+    }
+};
+
+/**
+ * Escape HTML entities.
+ */
+$e = function (?string $value): string {
+    return \htmlspecialchars($value ?? '', \ENT_QUOTES | \ENT_HTML5, 'UTF-8');
+};
+
+$statusLabel = \strtoupper($invoice->getStatus()->value);
+$statusColor = match ($invoice->getStatus()) {
+    \Utopia\Billing\InvoiceStatus::Paid => '#16a34a',
+    \Utopia\Billing\InvoiceStatus::Draft => '#6b7280',
+    \Utopia\Billing\InvoiceStatus::Finalized => '#2563eb',
+    \Utopia\Billing\InvoiceStatus::Failed => '#dc2626',
+    \Utopia\Billing\InvoiceStatus::Voided => '#9333ea',
+};
+
+$isCreditNote = $invoice->isCreditNote();
+
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><?= $e($isCreditNote ? 'Credit Note' : 'Invoice') ?> <?= $e($invoice->getNumber()) ?></title>
+<style>
+    /* Reset & Base */
+    *, *::before, *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        font-size: 14px;
+        line-height: 1.5;
+        color: #1f2937;
+        background: #f9fafb;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    /* Invoice Container */
+    .invoice {
+        max-width: 800px;
+        margin: 32px auto;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    /* Header */
+    .invoice-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 32px 40px;
+        border-bottom: 1px solid #e5e7eb;
+        background: #fafafa;
+    }
+
+    .invoice-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: #111827;
+        letter-spacing: -0.5px;
+    }
+
+    .invoice-number {
+        font-size: 14px;
+        color: #6b7280;
+        margin-top: 4px;
+    }
+
+    .invoice-status {
+        display: inline-block;
+        padding: 4px 14px;
+        border-radius: 9999px;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        color: #ffffff;
+    }
+
+    /* Parties */
+    .invoice-parties {
+        display: flex;
+        justify-content: space-between;
+        padding: 28px 40px;
+        gap: 40px;
+    }
+
+    .invoice-party {
+        flex: 1;
+    }
+
+    .invoice-party:last-child {
+        text-align: right;
+    }
+
+    .party-label {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: #9ca3af;
+        margin-bottom: 8px;
+    }
+
+    .party-name {
+        font-size: 16px;
+        font-weight: 600;
+        color: #111827;
+        margin-bottom: 4px;
+    }
+
+    .party-detail {
+        font-size: 13px;
+        color: #6b7280;
+        line-height: 1.6;
+    }
+
+    /* Meta (dates, etc.) */
+    .invoice-meta {
+        display: flex;
+        gap: 40px;
+        padding: 0 40px 28px;
+    }
+
+    .meta-item {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .meta-label {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: #9ca3af;
+        margin-bottom: 2px;
+    }
+
+    .meta-value {
+        font-size: 14px;
+        color: #1f2937;
+        font-weight: 500;
+    }
+
+    /* Line Items Table */
+    .invoice-items {
+        padding: 0 40px;
+    }
+
+    .items-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .items-table thead th {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: #9ca3af;
+        padding: 10px 12px;
+        border-bottom: 2px solid #e5e7eb;
+        text-align: left;
+    }
+
+    .items-table thead th:last-child,
+    .items-table thead th.text-right {
+        text-align: right;
+    }
+
+    .items-table tbody td {
+        padding: 12px 12px;
+        border-bottom: 1px solid #f3f4f6;
+        vertical-align: top;
+    }
+
+    .items-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .items-table .text-right {
+        text-align: right;
+    }
+
+    .items-table .text-center {
+        text-align: center;
+    }
+
+    /* Item type styling */
+    .item-description {
+        font-weight: 500;
+        color: #1f2937;
+    }
+
+    .item-resource {
+        font-size: 12px;
+        color: #9ca3af;
+        margin-top: 2px;
+    }
+
+    .item-type-badge {
+        display: inline-block;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-right: 6px;
+        vertical-align: middle;
+    }
+
+    .badge-plan { background: #dbeafe; color: #1d4ed8; }
+    .badge-usage { background: #fef3c7; color: #92400e; }
+    .badge-addon { background: #e0e7ff; color: #4338ca; }
+    .badge-proration { background: #f3e8ff; color: #7c3aed; }
+    .badge-refund { background: #fce7f3; color: #be185d; }
+
+    .item-discount td {
+        color: #dc2626;
+    }
+
+    .item-discount .item-description {
+        color: #dc2626;
+    }
+
+    .item-tax td {
+        color: #6b7280;
+        font-style: italic;
+    }
+
+    .item-tax .item-description {
+        color: #6b7280;
+    }
+
+    /* Totals */
+    .invoice-totals {
+        padding: 24px 40px 32px;
+    }
+
+    .totals-table {
+        width: 320px;
+        margin-left: auto;
+        border-collapse: collapse;
+    }
+
+    .totals-table td {
+        padding: 6px 0;
+    }
+
+    .totals-table .total-label {
+        color: #6b7280;
+        font-size: 14px;
+        padding-right: 24px;
+    }
+
+    .totals-table .total-value {
+        text-align: right;
+        font-size: 14px;
+        font-weight: 500;
+        color: #1f2937;
+    }
+
+    .totals-table .total-discount .total-value {
+        color: #dc2626;
+    }
+
+    .totals-table .total-row-grand {
+        border-top: 2px solid #1f2937;
+    }
+
+    .totals-table .total-row-grand td {
+        padding-top: 12px;
+    }
+
+    .totals-table .total-row-grand .total-label {
+        font-size: 16px;
+        font-weight: 700;
+        color: #111827;
+    }
+
+    .totals-table .total-row-grand .total-value {
+        font-size: 18px;
+        font-weight: 700;
+        color: #111827;
+    }
+
+    .totals-divider {
+        border: none;
+        border-top: 1px solid #e5e7eb;
+        margin: 12px 0;
+    }
+
+    .totals-table .total-payment .total-label {
+        font-size: 13px;
+        color: #9ca3af;
+    }
+
+    .totals-table .total-payment .total-value {
+        font-size: 13px;
+        color: #6b7280;
+        font-weight: 400;
+    }
+
+    /* Footer */
+    .invoice-footer {
+        padding: 20px 40px;
+        border-top: 1px solid #e5e7eb;
+        background: #fafafa;
+        text-align: center;
+        font-size: 12px;
+        color: #9ca3af;
+    }
+
+    /* Print */
+    @media print {
+        body {
+            background: #ffffff;
+        }
+
+        .invoice {
+            margin: 0;
+            border: none;
+            border-radius: 0;
+            box-shadow: none;
+        }
+
+        .invoice-header {
+            background: #fafafa;
+        }
+
+        .invoice-footer {
+            background: #fafafa;
+        }
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+        .invoice-header {
+            flex-direction: column;
+            gap: 16px;
+            padding: 24px 20px;
+        }
+
+        .invoice-parties {
+            flex-direction: column;
+            gap: 20px;
+            padding: 20px 20px;
+        }
+
+        .invoice-party:last-child {
+            text-align: left;
+        }
+
+        .invoice-meta {
+            flex-wrap: wrap;
+            gap: 16px;
+            padding: 0 20px 20px;
+        }
+
+        .invoice-items {
+            padding: 0 20px;
+            overflow-x: auto;
+        }
+
+        .invoice-totals {
+            padding: 20px 20px 24px;
+        }
+
+        .totals-table {
+            width: 100%;
+        }
+
+        .invoice-footer {
+            padding: 16px 20px;
+        }
+    }
+</style>
+</head>
+<body>
+
+<div class="invoice">
+    <!-- Header -->
+    <div class="invoice-header">
+        <div>
+            <div class="invoice-title"><?= $e($isCreditNote ? 'Credit Note' : 'Invoice') ?></div>
+            <?php if ($invoice->getNumber() !== ''): ?>
+                <div class="invoice-number">#<?= $e($invoice->getNumber()) ?></div>
+            <?php endif; ?>
+        </div>
+        <div>
+            <span class="invoice-status" style="background-color: <?= $e($statusColor) ?>;">
+                <?= $e($statusLabel) ?>
+            </span>
+        </div>
+    </div>
+
+    <!-- Parties: Issuer & Entity -->
+    <?php if (!empty($issuer) || !empty($entity)): ?>
+    <div class="invoice-parties">
+        <div class="invoice-party">
+            <div class="party-label">From</div>
+            <?php if (!empty($issuer['name'])): ?>
+                <div class="party-name"><?= $e($issuer['name']) ?></div>
+            <?php endif; ?>
+            <div class="party-detail">
+                <?php if (!empty($issuer['address'])): ?>
+                    <?= \nl2br($e($issuer['address'])) ?><br>
+                <?php endif; ?>
+                <?php if (!empty($issuer['email'])): ?>
+                    <?= $e($issuer['email']) ?><br>
+                <?php endif; ?>
+                <?php if (!empty($issuer['phone'])): ?>
+                    <?= $e($issuer['phone']) ?><br>
+                <?php endif; ?>
+                <?php if (!empty($issuer['taxId'])): ?>
+                    Tax ID: <?= $e($issuer['taxId']) ?>
+                <?php endif; ?>
+            </div>
+        </div>
+        <div class="invoice-party">
+            <div class="party-label">Bill To</div>
+            <?php if (!empty($entity['name'])): ?>
+                <div class="party-name"><?= $e($entity['name']) ?></div>
+            <?php endif; ?>
+            <div class="party-detail">
+                <?php if (!empty($entity['address'])): ?>
+                    <?= \nl2br($e($entity['address'])) ?><br>
+                <?php endif; ?>
+                <?php if (!empty($entity['email'])): ?>
+                    <?= $e($entity['email']) ?><br>
+                <?php endif; ?>
+                <?php if (!empty($entity['phone'])): ?>
+                    <?= $e($entity['phone']) ?><br>
+                <?php endif; ?>
+                <?php if (!empty($entity['taxId'])): ?>
+                    Tax ID: <?= $e($entity['taxId']) ?>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <!-- Meta: Dates & Currency -->
+    <div class="invoice-meta">
+        <?php if ($invoice->getDueDate() !== null): ?>
+        <div class="meta-item">
+            <span class="meta-label">Due Date</span>
+            <span class="meta-value"><?= $e($formatDate($invoice->getDueDate())) ?></span>
+        </div>
+        <?php endif; ?>
+        <?php if ($invoice->getPaidAt() !== null): ?>
+        <div class="meta-item">
+            <span class="meta-label">Paid On</span>
+            <span class="meta-value"><?= $e($formatDate($invoice->getPaidAt())) ?></span>
+        </div>
+        <?php endif; ?>
+        <?php if ($currency !== ''): ?>
+        <div class="meta-item">
+            <span class="meta-label">Currency</span>
+            <span class="meta-value"><?= $e(\strtoupper($currency)) ?></span>
+        </div>
+        <?php endif; ?>
+        <?php if ($isCreditNote && $invoice->getReferenceInvoiceId() !== null): ?>
+        <div class="meta-item">
+            <span class="meta-label">Reference Invoice</span>
+            <span class="meta-value"><?= $e($invoice->getReferenceInvoiceId()) ?></span>
+        </div>
+        <?php endif; ?>
+    </div>
+
+    <!-- Line Items -->
+    <?php if (!empty($items)): ?>
+    <div class="invoice-items">
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th class="text-right">Quantity</th>
+                    <th class="text-right">Unit Price</th>
+                    <th class="text-right">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($items as $item):
+                    $type = $item['type'] ?? '';
+                    $amount = (float) ($item['amount'] ?? 0);
+                    $quantity = $item['quantity'] ?? null;
+                    $unitPrice = $item['unitPrice'] ?? null;
+                    $unit = $item['unit'] ?? '';
+                    $resource = $item['resource'] ?? '';
+                    $description = $item['description'] ?? '';
+                    $rate = $item['rate'] ?? null;
+
+                    $rowClass = '';
+                    if ($type === 'discount') {
+                        $rowClass = 'item-discount';
+                    } elseif ($type === 'tax') {
+                        $rowClass = 'item-tax';
+                    }
+
+                    $badgeClass = match ($type) {
+                        'plan' => 'badge-plan',
+                        'usage' => 'badge-usage',
+                        'addon' => 'badge-addon',
+                        'proration' => 'badge-proration',
+                        'refund' => 'badge-refund',
+                        default => '',
+                    };
+                ?>
+                <tr class="<?= $e($rowClass) ?>">
+                    <td>
+                        <div class="item-description">
+                            <?php if ($badgeClass !== ''): ?>
+                                <span class="item-type-badge <?= $e($badgeClass) ?>"><?= $e(\ucfirst($type)) ?></span>
+                            <?php endif; ?>
+                            <?= $e($description) ?>
+                        </div>
+                        <?php if ($resource !== ''): ?>
+                            <div class="item-resource"><?= $e($resource) ?></div>
+                        <?php endif; ?>
+                    </td>
+                    <td class="text-right">
+                        <?php if ($quantity !== null): ?>
+                            <?= \number_format((float) $quantity, $quantity == (int) $quantity ? 0 : 2) ?><?= $unit !== '' ? ' ' . $e($unit) : '' ?>
+                        <?php else: ?>
+                            &mdash;
+                        <?php endif; ?>
+                    </td>
+                    <td class="text-right">
+                        <?php if ($unitPrice !== null): ?>
+                            <?= $formatAmount((float) $unitPrice) ?>
+                        <?php elseif ($rate !== null): ?>
+                            <?= \number_format((float) $rate, 1) ?>%
+                        <?php else: ?>
+                            &mdash;
+                        <?php endif; ?>
+                    </td>
+                    <td class="text-right">
+                        <?= $amount < 0 ? '-' : '' ?><?= $formatAmount($amount) ?>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+    <?php endif; ?>
+
+    <!-- Totals -->
+    <div class="invoice-totals">
+        <table class="totals-table">
+            <tr>
+                <td class="total-label">Subtotal</td>
+                <td class="total-value"><?= $formatAmount($invoice->getSubtotal()) ?></td>
+            </tr>
+            <?php if ($invoice->getDiscountTotal() != 0): ?>
+            <tr class="total-discount">
+                <td class="total-label">Discounts</td>
+                <td class="total-value">-<?= $formatAmount($invoice->getDiscountTotal()) ?></td>
+            </tr>
+            <?php endif; ?>
+            <?php if ($invoice->getTaxTotal() != 0): ?>
+            <tr>
+                <td class="total-label">Tax</td>
+                <td class="total-value"><?= $formatAmount($invoice->getTaxTotal()) ?></td>
+            </tr>
+            <?php endif; ?>
+            <tr class="total-row-grand">
+                <td class="total-label">Total</td>
+                <td class="total-value"><?= $formatAmount($invoice->getTotal()) ?></td>
+            </tr>
+            <?php if ($invoice->getWalletDeducted() > 0 || $invoice->getGatewayCharged() > 0): ?>
+            <tr>
+                <td colspan="2"><hr class="totals-divider"></td>
+            </tr>
+            <?php endif; ?>
+            <?php if ($invoice->getWalletDeducted() > 0): ?>
+            <tr class="total-payment">
+                <td class="total-label">Wallet Deducted</td>
+                <td class="total-value"><?= $formatAmount($invoice->getWalletDeducted()) ?></td>
+            </tr>
+            <?php endif; ?>
+            <?php if ($invoice->getGatewayCharged() > 0): ?>
+            <tr class="total-payment">
+                <td class="total-label">Gateway Charged</td>
+                <td class="total-value"><?= $formatAmount($invoice->getGatewayCharged()) ?></td>
+            </tr>
+            <?php endif; ?>
+        </table>
+    </div>
+
+    <!-- Footer -->
+    <div class="invoice-footer">
+        <?php if (!empty($issuer['name'])): ?>
+            <?= $e($issuer['name']) ?> &middot;
+        <?php endif; ?>
+        <?php if ($invoice->getNumber() !== ''): ?>
+            <?= $e($isCreditNote ? 'Credit Note' : 'Invoice') ?> #<?= $e($invoice->getNumber()) ?>
+        <?php endif; ?>
+    </div>
+</div>
+
+</body>
+</html>

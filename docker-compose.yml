@@ -1,0 +1,42 @@
+services:
+  tests:
+    container_name: billing-tests
+    build:
+      context: .
+    networks:
+      - billing
+    volumes:
+      - ./src:/usr/src/code/src
+      - ./tests:/usr/src/code/tests
+      - ./templates:/usr/src/code/templates
+      - ./phpunit.xml:/usr/src/code/phpunit.xml
+    environment:
+      MARIADB_HOST: mariadb
+      MARIADB_PORT: 3306
+      MARIADB_USER: root
+      MARIADB_PASSWORD: password
+      MARIADB_DATABASE: billing_test
+    depends_on:
+      mariadb:
+        condition: service_healthy
+
+  mariadb:
+    image: mariadb:10.11
+    container_name: billing-mariadb
+    command: mariadbd --max_allowed_packet=128M
+    networks:
+      - billing
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: billing_test
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  billing:
