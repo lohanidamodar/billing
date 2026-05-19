@@ -1457,6 +1457,8 @@ class Billing
      * @param  string|null  $walletId  Optional wallet ID for wallet operations
      * @param  string|null  $providerPaymentId  Optional gateway payment ID
      * @param  string  $description  Optional description
+     * @param  TransactionStatus  $status  Transaction status (default Succeeded)
+     * @param  array<string, mixed>  $metadata  Optional metadata to store as JSON
      *
      * @throws Exception
      */
@@ -1468,6 +1470,8 @@ class Billing
         ?string $walletId = null,
         ?string $providerPaymentId = null,
         string $description = '',
+        TransactionStatus $status = TransactionStatus::Succeeded,
+        array $metadata = [],
     ): Transaction {
         $data = [
             '$id' => ID::unique(),
@@ -1476,11 +1480,11 @@ class Billing
             'invoiceId' => $invoiceId,
             'type' => $type,
             'amount' => $amount,
-            'status' => TransactionStatus::Succeeded->value,
+            'status' => $status->value,
             'walletId' => $walletId,
             'providerPaymentId' => $providerPaymentId,
             'description' => $description,
-            'metadata' => '{}',
+            'metadata' => \json_encode($metadata) ?: '{}',
         ];
 
         $doc = $this->adapter->createTransaction(new Document($data));
